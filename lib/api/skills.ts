@@ -1,7 +1,7 @@
 import type { SkillDetail, SkillFavoriteResponse, SkillFilters, SkillListQuery, SkillListResponse } from "@/lib/types/skills";
+import { resolveApiUrl } from "@/lib/api-base";
 import { getSkillsMockData, skillFiltersMockData } from "@/lib/skills-data";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const SERVER_FETCH_TIMEOUT_MS = 1200;
 const ENABLE_SKILLS_API_FALLBACK = process.env.NEXT_PUBLIC_ENABLE_SKILLS_API_FALLBACK === "true";
 
@@ -43,7 +43,7 @@ async function fetchWithTimeout(input: string, init: RequestInit): Promise<Respo
 
 export async function getSkillFilters(): Promise<SkillFilters> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/api/v1/skills/filters`, {
+    const res = await fetchWithTimeout(resolveApiUrl("/api/v1/skills/filters"), {
       next: { revalidate: 300 },
     });
     const json = await res.json();
@@ -63,7 +63,7 @@ export async function getSkillFilters(): Promise<SkillFilters> {
 
 export async function getSkills(query: SkillListQuery): Promise<SkillListResponse> {
   const qs = toQueryString(query);
-  const url = `${API_BASE_URL}/api/v1/skills${qs ? `?${qs}` : ""}`;
+  const url = resolveApiUrl(`/api/v1/skills${qs ? `?${qs}` : ""}`);
   try {
     const res = await fetchWithTimeout(
       url,
@@ -91,7 +91,7 @@ export async function getSkills(query: SkillListQuery): Promise<SkillListRespons
 }
 
 export async function favoriteSkill(skillId: string): Promise<SkillFavoriteResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/skills/${skillId}/favorite`, {
+  const res = await fetch(resolveApiUrl(`/api/v1/skills/${skillId}/favorite`), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -107,7 +107,7 @@ export async function favoriteSkill(skillId: string): Promise<SkillFavoriteRespo
 }
 
 export async function unfavoriteSkill(skillId: string): Promise<SkillFavoriteResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/skills/${skillId}/favorite`, {
+  const res = await fetch(resolveApiUrl(`/api/v1/skills/${skillId}/favorite`), {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
@@ -123,7 +123,7 @@ export async function unfavoriteSkill(skillId: string): Promise<SkillFavoriteRes
 }
 
 export async function getSkillDetail(slug: string, init?: RequestInit): Promise<SkillDetail | null> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/v1/skills/${slug}`, {
+  const res = await fetchWithTimeout(resolveApiUrl(`/api/v1/skills/${slug}`), {
     ...(typeof window === "undefined" ? { next: { revalidate: 60 } } : { cache: "no-store" }),
     ...(init || {}),
   });

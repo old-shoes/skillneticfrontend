@@ -7,9 +7,8 @@ import type {
   ProfileUpdatePayload,
   ProfileUser,
 } from "@/lib/types/profile";
+import { resolveApiUrl } from "@/lib/api-base";
 import type { SkillSubmissionListResponse, SkillSubmitStatus } from "@/lib/types/submit-skill";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 type ApiResponse<T> = {
   code: number;
@@ -18,7 +17,7 @@ type ApiResponse<T> = {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(resolveApiUrl(path), {
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers || {}),

@@ -6,7 +6,6 @@ type PageProps = {
     q?: string | string[];
     category?: string | string[];
     scene?: string | string[];
-    model?: string | string[];
     type?: string | string[];
     sort?: string | string[];
     page?: string | string[];

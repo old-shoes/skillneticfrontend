@@ -155,9 +155,6 @@ function markdownComponents(): Components {
 }
 
 function tagTone(tag: SkillTag) {
-  if (tag.type === "model") {
-    return "bg-blue-50 text-blue-600";
-  }
   if (tag.type === "scene") {
     return "bg-cyan-50 text-cyan-600";
   }

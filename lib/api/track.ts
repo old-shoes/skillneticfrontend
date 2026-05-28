@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { resolveApiUrl } from "@/lib/api-base";
 
 type TrackEventName =
   | "page_view_home"
@@ -15,7 +15,6 @@ type TrackEventName =
   | "skills_category_shortcut_click"
   | "skills_filter_category_click"
   | "skills_filter_scene_click"
-  | "skills_filter_model_click"
   | "skills_filter_type_click"
   | "skills_sort_change"
   | "skills_card_click"
@@ -87,11 +86,11 @@ export function trackEvent(payload: TrackPayload): void {
 
   if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
     const blob = new Blob([body], { type: "application/json" });
-    navigator.sendBeacon(`${API_BASE_URL}/api/v1/track/event`, blob);
+    navigator.sendBeacon(resolveApiUrl("/api/v1/track/event"), blob);
     return;
   }
 
-  void fetch(`${API_BASE_URL}/api/v1/track/event`, {
+  void fetch(resolveApiUrl("/api/v1/track/event"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

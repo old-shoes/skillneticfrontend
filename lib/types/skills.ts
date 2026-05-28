@@ -2,7 +2,7 @@ export type SkillDifficulty = "beginner" | "intermediate" | "advanced";
 
 export type SkillSort = "latest" | "popular" | "favorites" | "views";
 
-export type SkillTagType = "model" | "scene" | "difficulty" | "type";
+export type SkillTagType = "scene" | "difficulty" | "type";
 
 export type SkillCategory = {
   id: string;
@@ -54,7 +54,6 @@ export type SkillFilters = {
   categories: SkillFilterOption[];
   categoryTree: SkillCategoryTree[];
   scenes: SkillFilterOption[];
-  models: SkillFilterOption[];
   types: SkillFilterOption[];
 };
 
@@ -62,7 +61,6 @@ export type SkillListQuery = {
   q?: string;
   category?: string;
   scene?: string;
-  model?: string;
   type?: string;
   sort?: SkillSort;
   page?: number;

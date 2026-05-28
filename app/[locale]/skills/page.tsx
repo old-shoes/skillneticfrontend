@@ -12,7 +12,6 @@ type PageProps = {
     q?: string | string[];
     category?: string | string[];
     scene?: string | string[];
-    model?: string | string[];
     type?: string | string[];
     sort?: string | string[];
     page?: string | string[];
@@ -44,7 +43,6 @@ export default async function LocaleSkillsPage({ params, searchParams }: PagePro
     q: pickValue(resolvedSearchParams?.q),
     category: pickValue(resolvedSearchParams?.category),
     scene: pickValue(resolvedSearchParams?.scene),
-    model: pickValue(resolvedSearchParams?.model),
     type: pickValue(resolvedSearchParams?.type),
     sort: (pickValue(resolvedSearchParams?.sort) as SkillSort | undefined) || "latest",
     page: toPositiveInt(pickValue(resolvedSearchParams?.page)),

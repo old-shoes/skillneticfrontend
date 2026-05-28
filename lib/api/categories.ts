@@ -1,3 +1,4 @@
+import { resolveApiUrl } from "@/lib/api-base";
 import { getCategoriesMockData, getCategoriesOverviewMockData } from "@/lib/categories-data";
 import type { Locale } from "@/lib/i18n";
 import type {
@@ -6,7 +7,6 @@ import type {
   CategoryOverviewData,
 } from "@/lib/types/categories";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const SERVER_FETCH_TIMEOUT_MS = 1200;
 
 function toQueryString(query: CategoryListQuery): string {
@@ -45,7 +45,7 @@ async function fetchWithTimeout(input: string, init: RequestInit): Promise<Respo
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+  const response = await fetchWithTimeout(resolveApiUrl(path), {
     next: { revalidate: 120 },
   });
   const json = await response.json();

@@ -64,7 +64,6 @@ const categoryToneMap: Record<string, string> = {
 };
 
 const tagToneMap: Record<string, string> = {
-  model: "bg-blue-50 text-blue-600",
   scene: "bg-cyan-50 text-cyan-600",
   type: "bg-orange-50 text-orange-500",
 };
@@ -96,7 +95,6 @@ function normalizeQuery(query: SkillListQuery): SkillListQuery {
     q: query.q || undefined,
     category: query.category || undefined,
     scene: query.scene || undefined,
-    model: query.model || undefined,
     type: query.type || undefined,
     sort: query.sort || "latest",
     page: query.page && query.page > 0 ? query.page : 1,
@@ -509,13 +507,12 @@ export function SkillsLibraryPage({
   const [loadMoreError, setLoadMoreError] = useState("");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isSceneExpanded, setIsSceneExpanded] = useState(false);
-  const [isModelExpanded, setIsModelExpanded] = useState(false);
   const [favoriteMessage, setFavoriteMessage] = useState("");
 
   const currentQuery = normalizeQuery(initialQuery);
   const shortcutCategories: SkillFilterOption[] = [{ label: copy.filters.allCategories, value: "all" }, ...filters.categories];
   const hasActiveFilters = Boolean(
-    currentQuery.q || currentQuery.category || currentQuery.scene || currentQuery.model || currentQuery.type,
+    currentQuery.q || currentQuery.category || currentQuery.scene || currentQuery.type,
   );
   const currentPagePath = withLocale(locale, buildQueryString(currentQuery));
 
@@ -526,7 +523,6 @@ export function SkillsLibraryPage({
     setLoadMoreError("");
     setIsFilterPanelOpen(false);
     setIsSceneExpanded(false);
-    setIsModelExpanded(false);
   }, [initialQuery.q, initialResponse, queryKey]);
 
   useEffect(() => {
@@ -549,12 +545,11 @@ export function SkillsLibraryPage({
         q: currentQuery.q || "",
         category: currentQuery.category || "",
         scene: currentQuery.scene || "",
-        model: currentQuery.model || "",
         type: currentQuery.type || "",
         sort: currentQuery.sort || "latest",
       },
     });
-  }, [currentPagePath, currentQuery.category, currentQuery.model, currentQuery.q, currentQuery.scene, currentQuery.sort, currentQuery.type]);
+  }, [currentPagePath, currentQuery.category, currentQuery.q, currentQuery.scene, currentQuery.sort, currentQuery.type]);
 
   function pushQuery(nextQuery: SkillListQuery) {
     router.push(withLocale(locale, buildQueryString(normalizeQuery(nextQuery))), { scroll: false });
@@ -841,29 +836,6 @@ export function SkillsLibraryPage({
                   },
                 });
                 updateQuery({ scene: value });
-              }}
-            />
-            <FilterRow
-              label={copy.filters.model}
-              allLabel={copy.filters.all}
-              moreLabel={copy.filters.more}
-              lessLabel={copy.filters.less}
-              activeValue={currentQuery.model}
-              options={filters.models}
-              collapsible
-              expanded={isModelExpanded}
-              onToggleExpand={() => setIsModelExpanded((prev) => !prev)}
-              onClick={(value) => {
-                trackEvent({
-                  eventName: "skills_filter_model_click",
-                  pageUrl: currentPagePath,
-                  targetType: "filter",
-                  targetId: value || "all",
-                  extra: {
-                    model: value || "",
-                  },
-                });
-                updateQuery({ model: value });
               }}
             />
             <FilterRow

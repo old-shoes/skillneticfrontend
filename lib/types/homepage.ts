@@ -11,7 +11,7 @@ export type CategoryItem = {
 export type SkillTag = {
   id: string;
   name: string;
-  type: "model" | "scene" | "difficulty" | "type";
+  type: "scene" | "difficulty" | "type";
 };
 
 export type HomepageSkill = {
@@ -23,7 +23,6 @@ export type HomepageSkill = {
   categoryName: string;
   tags: SkillTag[];
   difficulty: "beginner" | "intermediate" | "advanced";
-  modelLabels: string[];
   favoriteCount: number;
   viewCount: number;
   isFeatured: boolean;

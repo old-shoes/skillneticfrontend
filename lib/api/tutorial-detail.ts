@@ -1,8 +1,8 @@
 import type { Locale } from "@/lib/i18n";
+import { resolveApiUrl } from "@/lib/api-base";
 import { getTutorialDetailMockData } from "@/lib/tutorial-detail-data";
 import type { TutorialDetail } from "@/lib/types/tutorial-detail";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const SERVER_FETCH_TIMEOUT_MS = 1200;
 
 type ApiResponse<T> = {
@@ -40,7 +40,7 @@ function shouldUseFallback(error: unknown): boolean {
 
 export async function getTutorialDetail(slug: string, locale: Locale): Promise<TutorialDetail | null> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}${withLocaleQuery(`/api/v1/tutorials/${slug}`, locale)}`, {
+    const res = await fetchWithTimeout(resolveApiUrl(withLocaleQuery(`/api/v1/tutorials/${slug}`, locale)), {
       next: {
         revalidate: 60,
       },
@@ -66,28 +66,28 @@ export async function getTutorialDetail(slug: string, locale: Locale): Promise<T
 }
 
 export async function incrementTutorialView(tutorialId: string): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/v1/tutorials/${tutorialId}/view`, {
+  await fetch(resolveApiUrl(`/api/v1/tutorials/${tutorialId}/view`), {
     method: "POST",
     cache: "no-store",
   });
 }
 
 export async function incrementTutorialFavorite(tutorialId: string): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/v1/tutorials/${tutorialId}/favorite`, {
+  await fetch(resolveApiUrl(`/api/v1/tutorials/${tutorialId}/favorite`), {
     method: "POST",
     cache: "no-store",
   });
 }
 
 export async function incrementTutorialLike(tutorialId: string): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/v1/tutorials/${tutorialId}/like`, {
+  await fetch(resolveApiUrl(`/api/v1/tutorials/${tutorialId}/like`), {
     method: "POST",
     cache: "no-store",
   });
 }
 
 export async function submitTutorialHelpfulVote(tutorialId: string, vote: "yes" | "no"): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/v1/tutorials/${tutorialId}/helpful`, {
+  await fetch(resolveApiUrl(`/api/v1/tutorials/${tutorialId}/helpful`), {
     method: "POST",
     cache: "no-store",
     headers: {

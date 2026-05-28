@@ -3,8 +3,8 @@ import type {
   SkillSubmissionListResponse,
   SkillSubmissionMeta,
 } from "@/lib/types/submit-skill";
+import { resolveApiUrl } from "@/lib/api-base";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const SERVER_FETCH_TIMEOUT_MS = 1200;
 const ENABLE_SUBMIT_SKILL_API_FALLBACK = process.env.NEXT_PUBLIC_ENABLE_SUBMIT_SKILL_API_FALLBACK !== "false";
 
@@ -164,7 +164,7 @@ function writeLocalDraft(draft: SkillSubmissionDraft): SkillSubmissionDraft {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+  const res = await fetchWithTimeout(resolveApiUrl(path), {
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers || {}),

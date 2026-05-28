@@ -5,9 +5,9 @@ import type {
   TutorialListResponse,
   WeeklyHotTutorial,
 } from "@/lib/types/tutorials";
+import { resolveApiUrl } from "@/lib/api-base";
 import type { Locale } from "@/lib/i18n";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const SERVER_FETCH_TIMEOUT_MS = 1200;
 
 function toQueryString(query: TutorialListQuery): string {
@@ -77,7 +77,7 @@ function shouldUseFallback(error: unknown): boolean {
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+  const res = await fetchWithTimeout(resolveApiUrl(path), {
     next: {
       revalidate: 60,
     },
