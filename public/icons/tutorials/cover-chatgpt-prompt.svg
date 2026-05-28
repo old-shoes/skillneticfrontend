@@ -1,0 +1,13 @@
+<svg width="360" height="180" viewBox="0 0 360 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="180" rx="24" fill="url(#g)"/>
+  <circle cx="310" cy="36" r="54" fill="white" opacity="0.08"/>
+  <circle cx="62" cy="142" r="70" fill="white" opacity="0.07"/>
+<rect x="154" y="46" width="140" height="88" rx="12" fill="white" opacity="0.92"/><text x="174" y="78" font-family="Arial" font-size="16" font-weight="700" fill="#2563EB">PROMPT</text><rect x="174" y="92" width="86" height="7" rx="3.5" fill="#94A3B8" opacity="0.55"/><rect x="174" y="108" width="100" height="7" rx="3.5" fill="#94A3B8" opacity="0.45"/><path d="M76 50C54 50 42 65 42 86C42 108 57 121 76 121C97 121 110 106 110 86C110 65 97 50 76 50Z" stroke="white" stroke-width="8" opacity="0.9"/><path d="M76 50V121M42 86H110" stroke="white" stroke-width="6" opacity="0.55"/>
+  <text x="38" y="64" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="white">ChatGPT</text>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="360" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#047857"/>
+      <stop offset="1" stop-color="#065F46"/>
+    </linearGradient>
+  </defs>
+</svg>

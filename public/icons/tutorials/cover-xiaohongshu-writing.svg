@@ -1,0 +1,13 @@
+<svg width="360" height="180" viewBox="0 0 360 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="180" rx="24" fill="url(#g)"/>
+  <circle cx="310" cy="36" r="54" fill="white" opacity="0.08"/>
+  <circle cx="62" cy="142" r="70" fill="white" opacity="0.07"/>
+<rect x="48" y="42" width="110" height="94" rx="14" fill="white" opacity="0.86"/><path d="M75 106L81 82L128 58C136 54 143 64 136 70L91 112L75 116V106Z" fill="#F43F5E"/><rect x="78" y="64" width="54" height="7" rx="3.5" fill="#FDA4AF" opacity="0.7"/><rect x="78" y="79" width="42" height="7" rx="3.5" fill="#FDA4AF" opacity="0.55"/>
+  <text x="38" y="64" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="white">小红书</text>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="360" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F472B6"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+  </defs>
+</svg>

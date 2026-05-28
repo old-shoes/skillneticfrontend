@@ -1,0 +1,7 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="1" y="1" width="62" height="62" rx="18" fill="#F8F5FF" stroke="#ECE5FF" stroke-width="1.5"/>
+  <g fill="#7C5CFF">
+    <path d="M20 19H44C46.2 19 48 20.8 48 23V37C48 39.2 46.2 41 44 41H35L29 47V41H20C17.8 41 16 39.2 16 37V23C16 20.8 17.8 19 20 19Z"/>
+    <text x="25" y="35" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="white">{ }</text>
+  </g>
+</svg>
