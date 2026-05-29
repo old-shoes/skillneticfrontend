@@ -4,6 +4,8 @@ import { getTutorialDetailMockData } from "@/lib/tutorial-detail-data";
 import type { TutorialDetail } from "@/lib/types/tutorial-detail";
 
 const SERVER_FETCH_TIMEOUT_MS = 1200;
+const ENABLE_TUTORIAL_DETAIL_API_FALLBACK =
+  process.env.NEXT_PUBLIC_ENABLE_TUTORIAL_DETAIL_API_FALLBACK === "true";
 
 type ApiResponse<T> = {
   code: number;
@@ -47,7 +49,7 @@ export async function getTutorialDetail(slug: string, locale: Locale): Promise<T
     });
 
     if (res.status === 404) {
-      return getTutorialDetailMockData(slug, locale);
+      return ENABLE_TUTORIAL_DETAIL_API_FALLBACK ? getTutorialDetailMockData(slug, locale) : null;
     }
 
     const json = (await res.json()) as Partial<ApiResponse<TutorialDetail>> & { detail?: string };
@@ -58,7 +60,7 @@ export async function getTutorialDetail(slug: string, locale: Locale): Promise<T
 
     return json.data;
   } catch (error) {
-    if (shouldUseFallback(error)) {
+    if (ENABLE_TUTORIAL_DETAIL_API_FALLBACK && shouldUseFallback(error)) {
       return getTutorialDetailMockData(slug, locale);
     }
     throw error;

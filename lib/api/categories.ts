@@ -8,6 +8,7 @@ import type {
 } from "@/lib/types/categories";
 
 const SERVER_FETCH_TIMEOUT_MS = 1200;
+const ENABLE_CATEGORIES_API_FALLBACK = process.env.NEXT_PUBLIC_ENABLE_CATEGORIES_API_FALLBACK === "true";
 
 function toQueryString(query: CategoryListQuery): string {
   const params = new URLSearchParams();
@@ -60,7 +61,10 @@ async function getJson<T>(path: string): Promise<T> {
 export async function getCategoriesOverview(locale: Locale): Promise<CategoryOverviewData> {
   try {
     return await getJson<CategoryOverviewData>(withLocaleQuery("/api/v1/categories/overview", locale));
-  } catch {
+  } catch (error) {
+    if (!ENABLE_CATEGORIES_API_FALLBACK) {
+      throw error;
+    }
     return getCategoriesOverviewMockData(locale);
   }
 }
@@ -71,7 +75,10 @@ export async function getCategories(query: CategoryListQuery, locale: Locale): P
     return await getJson<CategoryListResponse>(
       withLocaleQuery(`/api/v1/categories${qs ? `?${qs}` : ""}`, locale),
     );
-  } catch {
+  } catch (error) {
+    if (!ENABLE_CATEGORIES_API_FALLBACK) {
+      throw error;
+    }
     return getCategoriesMockData(query, locale);
   }
 }

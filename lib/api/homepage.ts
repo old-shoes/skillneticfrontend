@@ -3,10 +3,7 @@ import { resolveApiUrl } from "@/lib/api-base";
 import { getHomepageMockData } from "@/lib/homepage-data";
 
 const SERVER_FETCH_TIMEOUT_MS = 1200;
-const ENABLE_HOMEPAGE_API_FALLBACK =
-  process.env.NEXT_PUBLIC_ENABLE_HOMEPAGE_API_FALLBACK === "true" ||
-  process.env.NEXT_PUBLIC_ENABLE_SKILLS_API_FALLBACK === "true" ||
-  process.env.NODE_ENV !== "production";
+const ENABLE_HOMEPAGE_API_FALLBACK = process.env.NEXT_PUBLIC_ENABLE_HOMEPAGE_API_FALLBACK === "true";
 
 type HomepageResponse = {
   code: number;
