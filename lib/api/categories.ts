@@ -1,5 +1,4 @@
 import { resolveApiUrl } from "@/lib/api-base";
-import { getCategoriesMockData, getCategoriesOverviewMockData } from "@/lib/categories-data";
 import type { Locale } from "@/lib/i18n";
 import type {
   CategoryListQuery,
@@ -8,7 +7,6 @@ import type {
 } from "@/lib/types/categories";
 
 const SERVER_FETCH_TIMEOUT_MS = 1200;
-const ENABLE_CATEGORIES_API_FALLBACK = process.env.NEXT_PUBLIC_ENABLE_CATEGORIES_API_FALLBACK === "true";
 
 function toQueryString(query: CategoryListQuery): string {
   const params = new URLSearchParams();
@@ -59,26 +57,12 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 export async function getCategoriesOverview(locale: Locale): Promise<CategoryOverviewData> {
-  try {
-    return await getJson<CategoryOverviewData>(withLocaleQuery("/api/v1/categories/overview", locale));
-  } catch (error) {
-    if (!ENABLE_CATEGORIES_API_FALLBACK) {
-      throw error;
-    }
-    return getCategoriesOverviewMockData(locale);
-  }
+  return await getJson<CategoryOverviewData>(withLocaleQuery("/api/v1/categories/overview", locale));
 }
 
 export async function getCategories(query: CategoryListQuery, locale: Locale): Promise<CategoryListResponse> {
   const qs = toQueryString(query);
-  try {
-    return await getJson<CategoryListResponse>(
-      withLocaleQuery(`/api/v1/categories${qs ? `?${qs}` : ""}`, locale),
-    );
-  } catch (error) {
-    if (!ENABLE_CATEGORIES_API_FALLBACK) {
-      throw error;
-    }
-    return getCategoriesMockData(query, locale);
-  }
+  return await getJson<CategoryListResponse>(
+    withLocaleQuery(`/api/v1/categories${qs ? `?${qs}` : ""}`, locale),
+  );
 }

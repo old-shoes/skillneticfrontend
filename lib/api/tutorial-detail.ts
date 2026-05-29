@@ -1,11 +1,8 @@
 import type { Locale } from "@/lib/i18n";
 import { resolveApiUrl } from "@/lib/api-base";
-import { getTutorialDetailMockData } from "@/lib/tutorial-detail-data";
 import type { TutorialDetail } from "@/lib/types/tutorial-detail";
 
 const SERVER_FETCH_TIMEOUT_MS = 1200;
-const ENABLE_TUTORIAL_DETAIL_API_FALLBACK =
-  process.env.NEXT_PUBLIC_ENABLE_TUTORIAL_DETAIL_API_FALLBACK === "true";
 
 type ApiResponse<T> = {
   code: number;
@@ -36,35 +33,24 @@ async function fetchWithTimeout(input: string, init: RequestInit): Promise<Respo
   }
 }
 
-function shouldUseFallback(error: unknown): boolean {
-  return error instanceof Error && (error.name === "AbortError" || error.message.includes("fetch failed"));
-}
-
 export async function getTutorialDetail(slug: string, locale: Locale): Promise<TutorialDetail | null> {
-  try {
-    const res = await fetchWithTimeout(resolveApiUrl(withLocaleQuery(`/api/v1/tutorials/${slug}`, locale)), {
-      next: {
-        revalidate: 60,
-      },
-    });
+  const res = await fetchWithTimeout(resolveApiUrl(withLocaleQuery(`/api/v1/tutorials/${slug}`, locale)), {
+    next: {
+      revalidate: 60,
+    },
+  });
 
-    if (res.status === 404) {
-      return ENABLE_TUTORIAL_DETAIL_API_FALLBACK ? getTutorialDetailMockData(slug, locale) : null;
-    }
-
-    const json = (await res.json()) as Partial<ApiResponse<TutorialDetail>> & { detail?: string };
-
-    if (!res.ok || json.code !== 0 || !json.data) {
-      throw new Error(json.message || json.detail || "Failed to fetch tutorial detail");
-    }
-
-    return json.data;
-  } catch (error) {
-    if (ENABLE_TUTORIAL_DETAIL_API_FALLBACK && shouldUseFallback(error)) {
-      return getTutorialDetailMockData(slug, locale);
-    }
-    throw error;
+  if (res.status === 404) {
+    return null;
   }
+
+  const json = (await res.json()) as Partial<ApiResponse<TutorialDetail>> & { detail?: string };
+
+  if (!res.ok || json.code !== 0 || !json.data) {
+    throw new Error(json.message || json.detail || "Failed to fetch tutorial detail");
+  }
+
+  return json.data;
 }
 
 export async function incrementTutorialView(tutorialId: string): Promise<void> {
