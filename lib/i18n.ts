@@ -81,7 +81,7 @@ export const messages = {
       logout: "退出",
       search: "搜索",
       footer: {
-        tagline: "让每个人都能更高效地使用 AI。",
+        tagline: "让ai正确精准的为你工作",
         product: "产品",
         resources: "资源",
         about: "关于我们",
