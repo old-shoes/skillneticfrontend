@@ -1,8 +1,7 @@
 import type { Locale } from "@/lib/i18n";
 import { resolveApiUrl } from "@/lib/api-base";
+import { fetchWithSsrTimeout, isRetryableFetchError } from "@/lib/api/ssr-fetch";
 import type { TutorialDetail } from "@/lib/types/tutorial-detail";
-
-const SERVER_FETCH_TIMEOUT_MS = 1200;
 
 type ApiResponse<T> = {
   code: number;
@@ -15,30 +14,21 @@ function withLocaleQuery(path: string, locale: Locale): string {
   return `${path}${joiner}locale=${locale}`;
 }
 
-async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
-  if (typeof window !== "undefined") {
-    return fetch(input, init);
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SERVER_FETCH_TIMEOUT_MS);
+export async function getTutorialDetail(slug: string, locale: Locale): Promise<TutorialDetail | null> {
+  let res: Response;
 
   try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
+    res = await fetchWithSsrTimeout(resolveApiUrl(withLocaleQuery(`/api/v1/tutorials/${slug}`, locale)), {
+      next: {
+        revalidate: 60,
+      },
     });
-  } finally {
-    clearTimeout(timeoutId);
+  } catch (error) {
+    if (isRetryableFetchError(error)) {
+      return null;
+    }
+    throw error;
   }
-}
-
-export async function getTutorialDetail(slug: string, locale: Locale): Promise<TutorialDetail | null> {
-  const res = await fetchWithTimeout(resolveApiUrl(withLocaleQuery(`/api/v1/tutorials/${slug}`, locale)), {
-    next: {
-      revalidate: 60,
-    },
-  });
 
   if (res.status === 404) {
     return null;

@@ -6,9 +6,8 @@ import type {
   WeeklyHotTutorial,
 } from "@/lib/types/tutorials";
 import { resolveApiUrl } from "@/lib/api-base";
+import { fetchWithSsrTimeout, isRetryableFetchError } from "@/lib/api/ssr-fetch";
 import type { Locale } from "@/lib/i18n";
-
-const SERVER_FETCH_TIMEOUT_MS = 1200;
 
 function toQueryString(query: TutorialListQuery): string {
   const params = new URLSearchParams();
@@ -54,30 +53,8 @@ function getEmptyTutorialList(query: TutorialListQuery): TutorialListResponse {
   };
 }
 
-async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
-  if (typeof window !== "undefined") {
-    return fetch(input, init);
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SERVER_FETCH_TIMEOUT_MS);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-function shouldUseFallback(error: unknown): boolean {
-  return error instanceof Error && (error.name === "AbortError" || error.message.includes("fetch failed"));
-}
-
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetchWithTimeout(resolveApiUrl(path), {
+  const res = await fetchWithSsrTimeout(resolveApiUrl(path), {
     next: {
       revalidate: 60,
     },
@@ -96,7 +73,7 @@ export async function getTutorials(query: TutorialListQuery, locale: Locale): Pr
   try {
     return await getJson<TutorialListResponse>(withLocaleQuery(`/api/v1/tutorials${qs ? `?${qs}` : ""}`, locale));
   } catch (error) {
-    if (shouldUseFallback(error)) {
+    if (isRetryableFetchError(error)) {
       return getEmptyTutorialList(query);
     }
     throw error;
@@ -107,7 +84,7 @@ export async function getTutorialFilters(locale: Locale): Promise<TutorialFilter
   try {
     return await getJson<TutorialFilters>(withLocaleQuery("/api/v1/tutorials/filters", locale));
   } catch (error) {
-    if (shouldUseFallback(error)) {
+    if (isRetryableFetchError(error)) {
       return EMPTY_TUTORIAL_FILTERS;
     }
     throw error;
@@ -118,7 +95,7 @@ export async function getLearningPaths(locale: Locale): Promise<LearningPath[]> 
   try {
     return await getJson<LearningPath[]>(withLocaleQuery("/api/v1/tutorials/learning-paths", locale));
   } catch (error) {
-    if (shouldUseFallback(error)) {
+    if (isRetryableFetchError(error)) {
       return [];
     }
     throw error;
@@ -129,7 +106,7 @@ export async function getWeeklyHotTutorials(locale: Locale): Promise<WeeklyHotTu
   try {
     return await getJson<WeeklyHotTutorial[]>(withLocaleQuery("/api/v1/tutorials/weekly-hot", locale));
   } catch (error) {
-    if (shouldUseFallback(error)) {
+    if (isRetryableFetchError(error)) {
       return [];
     }
     throw error;
