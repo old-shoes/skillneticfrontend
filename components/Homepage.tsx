@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { HeroButton } from "@/components/HeroButton";
 import { LocalizedLink } from "@/components/LocalizedLink";
+import { SkillCard } from "@/components/SkillCard";
 import { favoriteSkill, unfavoriteSkill } from "@/lib/api/skills";
 import { trackEvent } from "@/lib/api/track";
 import { getMessages, localeNumberFormat, type Locale, withLocale } from "@/lib/i18n";
@@ -34,18 +36,6 @@ const categoryIconMap: Record<string, string> = {
   learning: "/icons/category-learning.svg",
   video: "/icons/category-video.svg",
   automation: "/icons/category-automation.svg",
-};
-
-const skillIconMap: Record<string, string> = {
-  document: "/icons/document.svg",
-  group: "/icons/group.svg",
-  resume: "/icons/resume.svg",
-  chart: "/icons/chart.svg",
-  cube: "/icons/cube.svg",
-  email: "/icons/email.svg",
-  play: "/icons/play.svg",
-  "code-block": "/icons/code-block.svg",
-  calendar: "/icons/calendar.svg",
 };
 
 const statIconMap: Record<string, string> = {
@@ -137,14 +127,6 @@ function BoxIcon({
   );
 }
 
-function Tag({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-      {children}
-    </span>
-  );
-}
-
 function trackCategoryClick(locale: Locale, category: HomepageData["categories"][number]) {
   trackEvent({
     eventName: "home_category_click",
@@ -189,144 +171,6 @@ function CategoryCard({
           ? `${category.skillCount.toLocaleString(numberFormat)}+ Skills`
           : `${category.skillCount.toLocaleString(numberFormat)}+ Skill`}
       </p>
-    </LocalizedLink>
-  );
-}
-
-function formatFavoriteCount(locale: Locale, value: number) {
-  if (value / 1000 >= 1) {
-    return `${(value / 1000).toFixed(1)}k`;
-  }
-
-  return value.toLocaleString(localeNumberFormat[locale]);
-}
-
-function SkillCard({
-  skill,
-  locale,
-  hotLabel,
-  favoriteLabel,
-  detailsLabel,
-  onFavoriteToggle,
-}: {
-  skill: HomepageSkill;
-  locale: Locale;
-  hotLabel: string;
-  favoriteLabel: string;
-  detailsLabel: string;
-  onFavoriteToggle: (skill: HomepageSkill) => Promise<void>;
-}) {
-  const iconSrc = skill.coverIcon ? skillIconMap[skill.coverIcon] : undefined;
-
-  return (
-    <article className="rounded-[22px] border border-white/70 bg-white/95 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-      <div className="mb-4 flex items-start gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100">
-          {iconSrc ? (
-            <BoxIcon src={iconSrc} alt={skill.title} size={28} boxClassName="h-11 w-11 rounded-2xl bg-white/90 shadow-sm ring-1 ring-white/80" />
-          ) : (
-            <HeroIcon label={skill.title.slice(0, 1)} />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex items-center gap-2">
-            {skill.isHot ? <Tag>{hotLabel}</Tag> : null}
-            <h3 className="truncate text-lg font-semibold text-slate-900">{skill.title}</h3>
-          </div>
-          <p className="text-sm leading-6 text-slate-500">{skill.summary}</p>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {skill.tags.map((tag) => (
-          <Tag key={tag.id}>{tag.name}</Tag>
-        ))}
-      </div>
-
-      <div className="mt-5 flex items-center justify-between gap-3 text-sm text-slate-500">
-        <span>
-          {locale === "en"
-            ? `${formatFavoriteCount(locale, skill.favoriteCount)} ${favoriteLabel.toLowerCase()}`
-            : `${favoriteLabel} ${formatFavoriteCount(locale, skill.favoriteCount)}`}
-        </span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => void onFavoriteToggle(skill)}
-            className={`rounded-xl border px-3 py-2 font-medium transition ${
-              skill.isFavorited
-                ? "border-brand-200 text-brand-600"
-                : "border-slate-200 text-slate-700 hover:border-brand-200 hover:text-brand-600"
-            }`}
-          >
-            {skill.isFavorited ? (locale === "en" ? "Favorited" : "已收藏") : favoriteLabel}
-          </button>
-          <LocalizedLink
-            href={`/skills/${skill.slug}`}
-            onClick={() =>
-              trackEvent({
-                eventName: "home_featured_skill_click",
-                pageUrl: withLocale(locale, "/"),
-                targetType: "skill",
-                targetId: skill.id,
-                extra: {
-                  slug: skill.slug,
-                  title: skill.title,
-                },
-              })
-            }
-            className="rounded-xl bg-brand-500 px-3 py-2 font-medium !text-white transition hover:bg-brand-600"
-          >
-            {detailsLabel}
-          </LocalizedLink>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function LatestSkillCard({ skill, locale }: { skill: HomepageSkill; locale: Locale }) {
-  const iconSrc = skill.coverIcon ? skillIconMap[skill.coverIcon] : undefined;
-
-  return (
-    <LocalizedLink
-      href={`/skills/${skill.slug}`}
-      onClick={() =>
-        trackEvent({
-          eventName: "home_latest_skill_click",
-          pageUrl: withLocale(locale, "/"),
-          targetType: "skill",
-          targetId: skill.id,
-          extra: {
-            slug: skill.slug,
-            title: skill.title,
-          },
-        })
-      }
-      className="rounded-[18px] border border-white/75 bg-white/90 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(37,99,235,0.12)]"
-    >
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-          {iconSrc ? <BoxIcon src={iconSrc} alt={skill.title} size={18} boxClassName="h-8 w-8 rounded-lg bg-white/90 shadow-sm ring-1 ring-white/80" /> : <HeroIcon label={skill.title.slice(0, 1)} />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="truncate text-sm font-semibold text-slate-900">{skill.title}</h3>
-            <span className="inline-flex shrink-0 items-center gap-1 text-xs text-amber-500">
-              <BoxIcon src="/icons/star.svg" alt="" size={10} boxClassName="h-3.5 w-3.5" />
-              {skill.favoriteCount / 1000 >= 1 ? `${(skill.favoriteCount / 1000).toFixed(1)}k` : skill.favoriteCount}
-            </span>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {skill.tags.slice(0, 2).map((tag) => (
-              <span key={tag.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-                {tag.name}
-              </span>
-            ))}
-          </div>
-          <p className="mt-2 text-xs leading-5 text-slate-500">{skill.summary}</p>
-        </div>
-      </div>
     </LocalizedLink>
   );
 }
@@ -553,9 +397,24 @@ function Hero({
 }
 
 export function Homepage({ data, locale }: Props) {
+  const router = useRouter();
   const copy = getMessages(locale).homepage;
   const [featuredSkills, setFeaturedSkills] = useState<HomepageSkill[]>(data.featuredSkills);
   const [favoriteMessage, setFavoriteMessage] = useState("");
+
+  function openHomeSkill(skill: HomepageSkill, eventName: "home_featured_skill_click" | "home_latest_skill_click") {
+    trackEvent({
+      eventName,
+      pageUrl: withLocale(locale, "/"),
+      targetType: "skill",
+      targetId: skill.id,
+      extra: {
+        slug: skill.slug,
+        title: skill.title,
+      },
+    });
+    router.push(withLocale(locale, `/skills/${skill.slug}`));
+  }
 
   useEffect(() => {
     trackEvent({
@@ -651,11 +510,10 @@ export function Homepage({ data, locale }: Props) {
               <SkillCard
                 key={skill.id}
                 skill={skill}
-                locale={locale}
-                hotLabel={copy.hot}
+                variant="grid"
                 favoriteLabel={copy.actions.favorite}
-                detailsLabel={copy.actions.details}
-                onFavoriteToggle={handleHomepageFavoriteToggle}
+                onFavorite={() => handleHomepageFavoriteToggle(skill)}
+                onOpen={() => openHomeSkill(skill, "home_featured_skill_click")}
               />
             ))}
           </div>
@@ -665,7 +523,13 @@ export function Homepage({ data, locale }: Props) {
           <SectionTitle title={copy.sections.latest} actionLabel={copy.actions.viewAll} actionHref="/skills" />
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {data.latestSkills.map((skill) => (
-              <LatestSkillCard key={skill.id} skill={skill} locale={locale} />
+              <SkillCard
+                key={skill.id}
+                skill={skill}
+                variant="compact"
+                favoriteLabel={copy.actions.favorite}
+                onOpen={() => openHomeSkill(skill, "home_latest_skill_click")}
+              />
             ))}
           </div>
         </section>
