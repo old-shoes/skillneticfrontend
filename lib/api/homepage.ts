@@ -11,7 +11,9 @@ type HomepageResponse = {
 const EMPTY_HOMEPAGE_DATA: HomepageData = {
   categories: [],
   featuredSkills: [],
+  trendingSkills: [],
   latestSkills: [],
+  sceneCounts: [],
   tutorials: [],
   stats: {
     skillFavorites: 0,

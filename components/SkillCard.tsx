@@ -214,10 +214,6 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
               <StatIcon kind="view" />
               {formatMetric(skill.viewCount)}
             </span>
-            <span className="inline-flex items-center gap-2 text-[#98a1b2]">
-              <span className="text-[15px]">♡</span>
-              {Math.max(1, Math.round(skill.favoriteCount / 4))}
-            </span>
           </div>
         ) : (
           <div className="mt-3 flex items-center justify-between gap-3">
