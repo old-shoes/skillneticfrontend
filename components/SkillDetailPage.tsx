@@ -297,6 +297,7 @@ export function SkillDetailPage({ locale, skill }: Props) {
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-500">
+              {skill.authorName ? <span>{locale === "en" ? "Uploaded by" : "上传者"} {skill.authorName}</span> : null}
               <span>{locale === "en" ? "Updated" : "更新于"} {formatDate(locale, skill.updatedAt)}</span>
               <span>{formatMetric(locale, skill.viewCount)} {locale === "en" ? "views" : "浏览"}</span>
               <span>{formatMetric(locale, favoriteCount)} {locale === "en" ? "favorites" : "收藏"}</span>

@@ -129,11 +129,20 @@ function StatIcon({ kind }: { kind: "favorite" | "view" | "bookmark" }) {
   );
 }
 
+function FavoriteToggleIcon({ active }: { active: boolean }) {
+  return (
+    <img
+      src={active ? "/icons/favorite-star-filled.svg" : "/icons/favorite-star-outline.svg"}
+      alt=""
+      className="h-5 w-5"
+    />
+  );
+}
+
 export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, maxTags }: Props) {
   const tone = pickTone(skill);
   const icon = pickIcon(skill);
-  const tagCount = maxTags ?? (variant === "recommended" ? 3 : 2);
-  const tags = skill.tags.slice(0, tagCount);
+  const tags = maxTags ? skill.tags.slice(0, maxTags) : skill.tags;
   const showBookmark = Boolean(onFavorite);
   const authorName = skill.authorName?.trim();
   const isCompact = variant === "compact";
@@ -143,44 +152,46 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
     <article
       className={`rounded-[22px] border border-[#edf1f6] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.035)] ${
         isCompact ? "p-4" : "p-4.5"
-      } ${isCompact ? "flex gap-4" : ""}`}
+      }`}
     >
-      <button
-        type="button"
-        onClick={onOpen}
-        className={`flex shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br ${tone} ${
-          isCompact ? "h-14 w-14" : "h-16 w-16"
-        }`}
-      >
-        <img src={icon} alt="" className={`${isCompact ? "h-7 w-7" : "h-8 w-8"} brightness-0 invert`} />
-      </button>
+      <div className="flex items-start gap-3.5">
+        <button
+          type="button"
+          onClick={onOpen}
+          className={`flex shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br ${tone} ${
+            isCompact ? "h-14 w-14" : "h-15 w-15"
+          }`}
+        >
+          <img src={icon} alt="" className={`${isCompact ? "h-7 w-7" : "h-7.5 w-7.5"} brightness-0 invert`} />
+        </button>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <button type="button" onClick={onOpen} className="min-w-0 text-left">
-            <h3 className={`font-semibold text-[#171c28] ${isCompact ? "line-clamp-1 text-[14px]" : "line-clamp-1 text-[15px]"}`}>
-              {skill.title}
-            </h3>
-          </button>
-          {showBookmark ? (
-            <button
-              type="button"
-              onClick={() => void onFavorite?.()}
-              className={`shrink-0 text-[#9aa3b2] transition hover:text-[#4f46ff] ${
-                skill.isFavorited ? "text-[#4f46ff]" : ""
-              }`}
-              aria-label={favoriteLabel}
-            >
-              <StatIcon kind="bookmark" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <button type="button" onClick={onOpen} className="min-w-0 text-left">
+              <h3 className={`font-semibold text-[#171c28] ${isCompact ? "line-clamp-1 text-[14px]" : "line-clamp-1 text-[15px]"}`}>
+                {skill.title}
+              </h3>
             </button>
-          ) : null}
+            {showBookmark ? (
+              <button
+                type="button"
+                onClick={() => void onFavorite?.()}
+                className="shrink-0 transition hover:opacity-80"
+                aria-label={favoriteLabel}
+              >
+                <FavoriteToggleIcon active={Boolean(skill.isFavorited)} />
+              </button>
+            ) : null}
+          </div>
+
+          <p className={`line-clamp-2 text-[12px] leading-5.5 text-[#5f6779] ${isCompact ? "mt-1" : "mt-1.5"}`}>
+            {skill.summary}
+          </p>
         </div>
+      </div>
 
-        <p className={`line-clamp-2 text-[12px] leading-6 text-[#5f6779] ${isCompact ? "mt-1" : "mt-1.5"}`}>
-          {skill.summary}
-        </p>
-
-        <div className={`flex flex-wrap gap-2 ${isCompact ? "mt-3" : "mt-3.5"}`}>
+      <div className={`${isCompact ? "mt-2.5" : "mt-3"}`}>
+        <div className="flex flex-wrap gap-2">
           {tags.map((tag) => (
             <span
               key={tag.id}
@@ -194,7 +205,7 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
         </div>
 
         {isRecommended ? (
-          <div className="mt-3.5 flex items-center gap-4 text-[11px] text-[#6b7283]">
+          <div className="mt-3 flex items-center gap-4 text-[11px] text-[#6b7283]">
             <span className="inline-flex items-center gap-2">
               <StatIcon kind="favorite" />
               {formatMetric(skill.favoriteCount)}
@@ -209,7 +220,7 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
             </span>
           </div>
         ) : (
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="mt-3 flex items-center justify-between gap-3">
             {authorName ? (
               <div className="flex min-w-0 items-center gap-2">
                 <span className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-gradient-to-br from-[#6f82ff] to-[#5f66f4] text-[10px] font-semibold text-white">

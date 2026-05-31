@@ -30,6 +30,7 @@ export type SkillListItem = {
   title: string;
   slug: string;
   summary: string;
+  authorName?: string;
   coverIcon?: string | null;
   category: SkillCategory;
   tags: SkillTag[];
@@ -91,6 +92,7 @@ export type SkillDetail = {
   slug: string;
   summary: string;
   contentMarkdown: string;
+  authorName?: string;
   coverIcon?: string | null;
   category: SkillCategory;
   tags: SkillTag[];

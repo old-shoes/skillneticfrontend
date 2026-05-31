@@ -126,9 +126,17 @@ export async function unfavoriteSkill(skillId: string): Promise<SkillFavoriteRes
   return json.data;
 }
 
-export async function getSkillDetail(slug: string, init?: RequestInit): Promise<SkillDetail | null> {
-  const res = await fetchWithSsrTimeout(resolveApiUrl(`/api/v1/skills/${slug}`), {
-    ...(typeof window === "undefined" ? { next: { revalidate: 60 } } : { cache: "no-store" }),
+export async function getSkillDetail(
+  slug: string,
+  init?: RequestInit,
+  options?: { trackView?: boolean },
+): Promise<SkillDetail | null> {
+  const params = new URLSearchParams();
+  if (options?.trackView) {
+    params.set("trackView", "true");
+  }
+  const res = await fetchWithSsrTimeout(resolveApiUrl(`/api/v1/skills/${slug}${params.size ? `?${params.toString()}` : ""}`), {
+    cache: "no-store",
     ...(init || {}),
   });
 

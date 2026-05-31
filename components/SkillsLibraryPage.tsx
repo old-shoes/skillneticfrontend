@@ -77,14 +77,6 @@ function pickCategoryIcon(slug?: string): string {
   return categoryIconMap[slug] || categoryIconMap.all;
 }
 
-function inferAuthor(skill: SkillListItem, locale: Locale): string {
-  if (skill.isFeatured) {
-    return locale === "en" ? "Skillnetic Official" : "Skillnetic 官方";
-  }
-  const firstTag = skill.tags[0]?.name;
-  return firstTag || (locale === "en" ? "Skillnetic User" : "社区用户");
-}
-
 function buildSceneOptions(filters: SkillFilters, locale: Locale) {
   if (filters.scenes.length > 0) {
     return filters.scenes;
@@ -200,7 +192,6 @@ export function SkillsLibraryPage({
     () => [{ label: copy.filters.all, value: "all" }, ...filters.types],
     [copy.filters.all, filters.types],
   );
-  const recommendedSkills = useMemo(() => skills.slice(0, 4), [skills]);
   const sortOptions: Array<{ label: string; value: SkillSort }> = [
     { label: copy.sort.latest, value: "latest" },
     { label: copy.sort.popular, value: "popular" },
@@ -333,22 +324,22 @@ export function SkillsLibraryPage({
   }
 
   return (
-    <main className="mx-auto max-w-[1760px] bg-white px-5 pb-8 pt-6 lg:px-8">
+    <main className="min-h-[max(760px,calc(100vh-88px))] overflow-x-auto bg-white">
       {favoriteMessage ? (
         <div className="fixed right-6 top-20 z-50 rounded-2xl border border-[#e4e7ff] bg-white px-4 py-3 text-sm font-medium text-[#6c5ce7] shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
           {favoriteMessage}
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="xl:sticky xl:top-24 xl:h-fit">
-          <div className="mb-8 px-2">
+      <div className="mx-auto grid min-h-[max(720px,calc(100vh-112px))] min-w-[1240px] max-w-[1760px] gap-6 px-5 pb-4 pt-3 lg:px-8 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="xl:sticky xl:h-[calc(100vh-120px)]">
+          <div className="mb-5 px-1">
             <h1 className="text-[44px] font-semibold leading-none tracking-tight text-[#0f1728]">
               {locale === "en" ? "Skills" : "技能库"}
             </h1>
           </div>
 
-          <aside className="rounded-[24px] border border-[#edf1f6] bg-white px-5 py-6 shadow-[0_10px_32px_rgba(15,23,42,0.04)]">
+          <aside className="flex h-[calc(100%-76px)] min-h-[640px] flex-col overflow-hidden rounded-[24px] border border-[#edf1f6] bg-white px-5 py-6 shadow-[0_10px_32px_rgba(15,23,42,0.04)]">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-[18px] font-semibold text-[#171c28]">{copy.filters.title}</h2>
               <button
@@ -361,7 +352,7 @@ export function SkillsLibraryPage({
               </button>
             </div>
 
-            <div className="space-y-7">
+            <div className="min-h-0 flex-1 space-y-7 overflow-y-auto pr-2">
               <SidebarSection
                 title={copy.filters.category}
                 icon="/v2skills-filter-icons/category.svg"
@@ -445,8 +436,8 @@ export function SkillsLibraryPage({
           </aside>
         </div>
 
-        <section className="min-w-0">
-          <div className="mb-8">
+        <section className="min-w-0 xl:flex xl:h-[calc(100vh-120px)] xl:min-h-0 xl:flex-col">
+          <div className="mb-8 shrink-0">
             <form
               onSubmit={(event) => {
                 event.preventDefault();
@@ -480,31 +471,7 @@ export function SkillsLibraryPage({
             </form>
           </div>
 
-          <section className="mb-8">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[26px] font-semibold tracking-tight text-[#0f1728]">
-                {locale === "en" ? "Recommended Skills" : "推荐 Skill"}
-              </h2>
-              <LocalizedLink href="/skills" className="inline-flex items-center gap-2 text-[15px] font-medium text-[#6b7283] hover:text-[#4f46ff]">
-                <span>{locale === "en" ? "View more" : "查看更多"}</span>
-                <span className="text-[20px]">›</span>
-              </LocalizedLink>
-            </div>
-            <div className="grid gap-4 xl:grid-cols-4">
-              {recommendedSkills.map((skill) => (
-                <SkillCard
-                  key={`featured-${skill.id}`}
-                  skill={skill}
-                  variant="recommended"
-                  favoriteLabel={copy.card.favorite}
-                  onFavorite={() => handleFavorite(skill)}
-                  onOpen={() => openSkill(skill)}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section>
+          <section className="min-h-0 flex-1 xl:overflow-y-auto xl:pr-2">
             <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-end gap-4">
                 <h2 className="text-[26px] font-semibold tracking-tight text-[#0f1728]">
@@ -582,10 +549,7 @@ export function SkillsLibraryPage({
                   {skills.map((skill) => (
                     <SkillCard
                       key={skill.id}
-                      skill={{
-                        ...skill,
-                        authorName: inferAuthor(skill, locale),
-                      }}
+                      skill={skill}
                       variant={viewMode === "grid" ? "grid" : "compact"}
                       favoriteLabel={copy.card.favorite}
                       onFavorite={() => handleFavorite(skill)}
@@ -594,7 +558,7 @@ export function SkillsLibraryPage({
                   ))}
                 </div>
 
-                <div className="mt-7 flex flex-col items-center gap-3">
+                <div className="mt-5 flex flex-col items-center gap-3">
                   {pagination.page < pagination.totalPages ? (
                     <button
                       type="button"

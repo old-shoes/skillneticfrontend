@@ -39,7 +39,7 @@ export default async function LocaleSkillDetailPage({ params }: Props) {
 
   const headerStore = await headers();
   const cookie = headerStore.get("cookie") || "";
-  const skill = await getSkillDetail(slug, cookie ? { headers: { cookie } } : undefined);
+  const skill = await getSkillDetail(slug, cookie ? { headers: { cookie } } : undefined, { trackView: true });
   if (!skill) {
     notFound();
   }
