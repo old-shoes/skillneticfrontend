@@ -506,30 +506,6 @@ function SectionHeader({
 
 type HomeSkillClickEventName = "home_featured_skill_click" | "home_latest_skill_click";
 
-function StatsPanel({ locale, data }: { locale: Locale; data: HomepageData }) {
-  const copy = copyByLocale[locale];
-  const stats = [
-    { value: "10,328+", label: copy.statsFavorites },
-    { value: "128,562+", label: copy.statsUsers },
-    { value: "45.6万+", label: copy.statsVisits },
-    { value: "98%", label: copy.statsSatisfaction },
-  ];
-
-  return (
-    <section>
-      <h3 className="text-[18px] font-semibold text-[#171E3D]">{copy.platformStats}</h3>
-      <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5">
-        {stats.map((item) => (
-          <div key={item.label}>
-            <p className="text-[19px] font-semibold tracking-[-0.03em] text-[#5A5EF5]">{item.value}</p>
-            <p className="mt-2 text-[13px] text-[#6D7493]">{item.label}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function WeeklyRankingCard({ locale, skills }: { locale: Locale; skills: HomepageSkill[] }) {
   const copy = copyByLocale[locale];
   const ranking = useMemo(() => buildRanking(skills), [skills]);
@@ -732,8 +708,6 @@ export function Homepage({ data, locale }: Props) {
                 <TopTrendCard skills={data.trendingSkills ?? data.latestSkills} copy={copy} />
                 <div className="my-4 h-px bg-[#EEF1FA]" />
                 <LatestActivityCard locale={locale} latestSkills={data.latestSkills} />
-                <div className="my-4 h-px bg-[#EEF1FA]" />
-                <StatsPanel locale={locale} data={data} />
                 <div className="my-4 h-px bg-[#EEF1FA]" />
                 <WeeklyRankingCard locale={locale} skills={data.featuredSkills} />
               </div>
