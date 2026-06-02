@@ -4,6 +4,8 @@ import { getHomepageData } from "@/lib/api/homepage";
 import { isLocale } from "@/lib/i18n";
 import { notFound } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 type Props = {
   params: Promise<{
     locale: string;

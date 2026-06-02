@@ -7,7 +7,7 @@ import { SkillCard } from "@/components/SkillCard";
 import { favoriteSkill, unfavoriteSkill } from "@/lib/api/skills";
 import { trackEvent } from "@/lib/api/track";
 import { localeNumberFormat, type Locale, withLocale } from "@/lib/i18n";
-import type { CategoryItem, HomepageData, HomepageSkill } from "@/lib/types/homepage";
+import type { CategoryItem, HomepageContributor, HomepageData, HomepageSkill } from "@/lib/types/homepage";
 
 type Props = {
   data: HomepageData;
@@ -30,6 +30,7 @@ type HomeCopy = {
   latestActivity: string;
   platformStats: string;
   weeklyRanking: string;
+  weeklyRankingEmpty: string;
   viewMore: string;
   allCategories: string;
   submitCtaTitle: string;
@@ -69,7 +70,9 @@ type ActivityItem = {
 
 type LeaderItem = {
   name: string;
-  score: string;
+  score: number;
+  submissionCount: number;
+  favoriteCount: number;
 };
 
 const copyByLocale: Record<Locale, HomeCopy> = {
@@ -89,6 +92,7 @@ const copyByLocale: Record<Locale, HomeCopy> = {
     latestActivity: "最新动态",
     platformStats: "平台数据",
     weeklyRanking: "本周贡献榜",
+    weeklyRankingEmpty: "本周暂无数据",
     viewMore: "查看更多",
     allCategories: "更多分类",
     submitCtaTitle: "成为创作者，分享你的知识与经验",
@@ -127,6 +131,7 @@ const copyByLocale: Record<Locale, HomeCopy> = {
     latestActivity: "Latest Activity",
     platformStats: "Platform Stats",
     weeklyRanking: "Weekly Ranking",
+    weeklyRankingEmpty: "No data this week",
     viewMore: "View more",
     allCategories: "More categories",
     submitCtaTitle: "Become a creator and share your knowledge",
@@ -188,9 +193,6 @@ const sceneCardsByLocale: Record<Locale, SceneCard[]> = {
   ],
 };
 
-const activityUsers = ["小明同学", "AI 探索者", "程序员小帅", "设计师阿棠", "数据达人", "产品经理林林"];
-const rankingUsers = ["程序员小帅", "AI 探索者", "设计师阿棠", "数据分析师", "运营阿泽"];
-
 const categoryIconMap: Record<string, string> = {
   writing: "/v2home/skillnetic_homepage_icons_svg/cat_write.svg",
   coding: "/v2home/skillnetic_homepage_icons_svg/cat_code.svg",
@@ -213,22 +215,12 @@ function iconForCategory(category: CategoryItem): string {
   return categoryIconMap[category.slug] || "/v2home/skillnetic_homepage_icons_svg/cat_more.svg";
 }
 
-function buildActivities(copy: HomeCopy, skills: HomepageSkill[]): ActivityItem[] {
-  return skills.slice(0, 5).map((skill, index) => {
-    const action = [copy.uploaded, copy.liked, copy.commented, copy.favoritedAction][index % 4];
-    return {
-      user: activityUsers[index % activityUsers.length],
-      action,
-      target: skill.title,
-      ago: `${index + 2} ${copyByLocale.zh === copy ? "小时前" : "h ago"}`,
-    };
-  });
-}
-
-function buildRanking(skills: HomepageSkill[]): LeaderItem[] {
-  return rankingUsers.map((name, index) => ({
-    name,
-    score: String(1256 - index * 230),
+function buildRanking(contributors: HomepageContributor[]): LeaderItem[] {
+  return contributors.map((item) => ({
+    name: item.user,
+    score: item.score,
+    submissionCount: item.submissionCount,
+    favoriteCount: item.favoriteCount,
   }));
 }
 
@@ -445,16 +437,12 @@ function CategoryStrip({ locale, categories }: { locale: Locale; categories: Cat
   );
 }
 
-function LatestActivityCard({ locale, latestSkills }: { locale: Locale; latestSkills: HomepageSkill[] }) {
+function LatestActivityCard({ locale, items }: { locale: Locale; items: ActivityItem[] }) {
   const copy = copyByLocale[locale];
-  const items = useMemo(() => buildActivities(copy, latestSkills), [copy, latestSkills]);
   return (
     <section>
       <div className="flex items-center justify-between">
         <h3 className="text-[17px] font-semibold text-[#171E3D]">{copy.latestActivity}</h3>
-        <LocalizedLink href="/community" className="text-sm font-medium text-[#9398B3] hover:text-[#5B5CEB]">
-          {copy.viewMore} <span className="ml-1">›</span>
-        </LocalizedLink>
       </div>
       <div className="mt-4 space-y-4">
         {items.map((item, index) => (
@@ -506,34 +494,42 @@ function SectionHeader({
 
 type HomeSkillClickEventName = "home_featured_skill_click" | "home_latest_skill_click";
 
-function WeeklyRankingCard({ locale, skills }: { locale: Locale; skills: HomepageSkill[] }) {
+function WeeklyRankingCard({ locale, contributors }: { locale: Locale; contributors: HomepageContributor[] }) {
   const copy = copyByLocale[locale];
-  const ranking = useMemo(() => buildRanking(skills), [skills]);
+  const ranking = useMemo(() => buildRanking(contributors), [contributors]);
   return (
     <section>
       <div className="flex items-center justify-between">
         <h3 className="text-[18px] font-semibold text-[#171E3D]">{copy.weeklyRanking}</h3>
-        <LocalizedLink href="/community" className="text-sm font-medium text-[#9398B3] hover:text-[#5B5CEB]">
-          {copy.viewMore} <span className="ml-1">›</span>
-        </LocalizedLink>
       </div>
-      <div className="mt-5 space-y-4">
-        {ranking.map((item, index) => (
-          <div key={item.name} className="flex items-center gap-3">
-            <div className="w-4 text-[22px] font-semibold text-[#F18E2B]">{index + 1}</div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(180deg,#EEF2FF_0%,#FFFFFF_100%)] text-[12px] font-semibold text-[#5965F6] shadow-[0_8px_18px_rgba(92,101,235,0.14)]">
-              {item.name.slice(0, 2)}
+      {ranking.length ? (
+        <div className="mt-5 space-y-4">
+          {ranking.map((item, index) => (
+            <div key={item.name} className="flex items-center gap-3">
+              <div className="w-4 text-[22px] font-semibold text-[#F18E2B]">{index + 1}</div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(180deg,#EEF2FF_0%,#FFFFFF_100%)] text-[12px] font-semibold text-[#5965F6] shadow-[0_8px_18px_rgba(92,101,235,0.14)]">
+                {item.name.slice(0, 2)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] text-[#242B49]">{item.name}</p>
+                <p className="mt-0.5 text-[12px] text-[#8B91AD]">
+                  {locale === "en"
+                    ? `${item.submissionCount} submissions · ${item.favoriteCount} favorites`
+                    : `${item.submissionCount} 次提交 · ${item.favoriteCount} 次收藏`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-[14px] font-medium text-[#F18E2B]">
+                <img src="/v2home/skillnetic_homepage_icons_svg/trend_fire.svg" alt="" className="h-4.5 w-4.5" />
+                <span>{item.score}</span>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] text-[#242B49]">{item.name}</p>
-            </div>
-            <div className="flex items-center gap-1.5 text-[14px] font-medium text-[#F18E2B]">
-              <img src="/v2home/skillnetic_homepage_icons_svg/trend_fire.svg" alt="" className="h-4.5 w-4.5" />
-              <span>{item.score}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5 rounded-[16px] bg-[linear-gradient(180deg,#F7F9FF_0%,#FFFFFF_100%)] px-4 py-5 text-center text-[13px] text-[#8B91AD]">
+          {copy.weeklyRankingEmpty}
+        </div>
+      )}
     </section>
   );
 }
@@ -620,6 +616,7 @@ export function Homepage({ data, locale }: Props) {
         ),
       );
       setFavoriteMessage(result.favorited ? copy.favorited : copy.removed);
+      router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (message.toLowerCase().includes("unauthorized")) {
@@ -707,9 +704,9 @@ export function Homepage({ data, locale }: Props) {
               <div className="rounded-[22px] bg-white/94 px-5 py-4.5 shadow-[0_16px_48px_rgba(102,118,197,0.06)] ring-1 ring-white/90">
                 <TopTrendCard skills={data.trendingSkills ?? data.latestSkills} copy={copy} />
                 <div className="my-4 h-px bg-[#EEF1FA]" />
-                <LatestActivityCard locale={locale} latestSkills={data.latestSkills} />
+                <LatestActivityCard locale={locale} items={data.latestActivities ?? []} />
                 <div className="my-4 h-px bg-[#EEF1FA]" />
-                <WeeklyRankingCard locale={locale} skills={data.featuredSkills} />
+                <WeeklyRankingCard locale={locale} contributors={data.weeklyContributors ?? []} />
               </div>
             </aside>
           </div>

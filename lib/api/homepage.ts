@@ -13,6 +13,8 @@ const EMPTY_HOMEPAGE_DATA: HomepageData = {
   featuredSkills: [],
   trendingSkills: [],
   latestSkills: [],
+  latestActivities: [],
+  weeklyContributors: [],
   sceneCounts: [],
   tutorials: [],
   stats: {
@@ -26,9 +28,7 @@ const EMPTY_HOMEPAGE_DATA: HomepageData = {
 export async function getHomepageData(init?: RequestInit): Promise<HomepageData> {
   try {
     const res = await fetchWithSsrTimeout(resolveApiUrl("/api/v1/homepage"), {
-      next: {
-        revalidate: 60,
-      },
+      cache: "no-store",
       ...init,
     });
 
