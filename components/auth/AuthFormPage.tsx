@@ -459,7 +459,7 @@ export function AuthFormPage({ locale, mode }: Props) {
         clearAuthSession();
         const result = await loginAuth({ email, password, rememberMe });
         saveAuthUser(result.user);
-        router.push(withLocale(locale, "/me/submit"));
+        router.push(withLocale(locale, "/me"));
       } else if (isRegister) {
         clearAuthSession();
         const result = await registerAuth({
@@ -471,7 +471,7 @@ export function AuthFormPage({ locale, mode }: Props) {
           locale,
         });
         saveAuthUser(result.user);
-        router.push(withLocale(locale, "/me/submit"));
+        router.push(withLocale(locale, "/me"));
       } else if (isForgotPassword) {
         await resetPassword({
           email,

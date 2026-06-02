@@ -4,8 +4,7 @@ import type {
   SkillSubmissionMeta,
 } from "@/lib/types/submit-skill";
 import { resolveApiUrl } from "@/lib/api-base";
-
-const SERVER_FETCH_TIMEOUT_MS = 1200;
+import { fetchWithSsrTimeout, isRetryableFetchError } from "@/lib/api/ssr-fetch";
 const ENABLE_SUBMIT_SKILL_API_FALLBACK = process.env.NEXT_PUBLIC_ENABLE_SUBMIT_SKILL_API_FALLBACK !== "false";
 
 type ApiResponse<T> = {
@@ -109,32 +108,6 @@ const submitSkillMetaFallback: SkillSubmissionMeta = {
   ],
 };
 
-async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
-  if (typeof window !== "undefined") {
-    return fetch(input, init);
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SERVER_FETCH_TIMEOUT_MS);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-function shouldUseFallback(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-  const message = error.message.toLowerCase();
-  return error.name === "AbortError" || message.includes("fetch failed") || message.includes("failed to fetch");
-}
-
 function canUseLocalDraftFallback(): boolean {
   return typeof window !== "undefined" && ENABLE_SUBMIT_SKILL_API_FALLBACK;
 }
@@ -164,7 +137,7 @@ function writeLocalDraft(draft: SkillSubmissionDraft): SkillSubmissionDraft {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetchWithTimeout(resolveApiUrl(path), {
+  const res = await fetchWithSsrTimeout(resolveApiUrl(path), {
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers || {}),
@@ -183,7 +156,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getSubmitSkillMeta(): Promise<SkillSubmissionMeta> {
   return request<SkillSubmissionMeta>("/api/v1/skill-submissions/meta").catch((error) => {
-    if (!ENABLE_SUBMIT_SKILL_API_FALLBACK || !shouldUseFallback(error)) {
+    if (!ENABLE_SUBMIT_SKILL_API_FALLBACK || !isRetryableFetchError(error)) {
       throw error;
     }
     return submitSkillMetaFallback;
@@ -195,7 +168,7 @@ export function createSubmitSkillDraft(payload: Pick<SkillSubmissionDraft, "titl
     method: "POST",
     body: JSON.stringify(payload),
   }).catch((error) => {
-    if (!shouldUseFallback(error) || !canUseLocalDraftFallback()) {
+    if (!isRetryableFetchError(error) || !canUseLocalDraftFallback()) {
       throw error;
     }
     const now = new Date().toISOString();
@@ -226,7 +199,7 @@ export function createSubmitSkillDraft(payload: Pick<SkillSubmissionDraft, "titl
 
 export function getSubmitSkillDraft(id: string): Promise<SkillSubmissionDraft> {
   return request<SkillSubmissionDraft>(`/api/v1/skill-submissions/${id}`).catch((error) => {
-    if (!shouldUseFallback(error) || !canUseLocalDraftFallback()) {
+    if (!isRetryableFetchError(error) || !canUseLocalDraftFallback()) {
       throw error;
     }
     const draft = readLocalDraft();
@@ -243,7 +216,7 @@ export function updateSubmitSkillDraft(id: string, payload: Partial<SkillSubmiss
     method: "PATCH",
     body: JSON.stringify(nextPayload),
   }).catch((error) => {
-    if (!shouldUseFallback(error) || !canUseLocalDraftFallback()) {
+    if (!isRetryableFetchError(error) || !canUseLocalDraftFallback()) {
       throw error;
     }
     const current = readLocalDraft();

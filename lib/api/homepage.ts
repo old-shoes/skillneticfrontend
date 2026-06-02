@@ -1,7 +1,6 @@
 import type { HomepageData } from "@/lib/types/homepage";
 import { resolveApiUrl } from "@/lib/api-base";
-
-const SERVER_FETCH_TIMEOUT_MS = 1200;
+import { fetchWithSsrTimeout, isRetryableFetchError } from "@/lib/api/ssr-fetch";
 
 type HomepageResponse = {
   code: number;
@@ -9,41 +8,45 @@ type HomepageResponse = {
   data: HomepageData;
 };
 
-async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
-  if (typeof window !== "undefined") {
-    return fetch(input, init);
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SERVER_FETCH_TIMEOUT_MS);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
+const EMPTY_HOMEPAGE_DATA: HomepageData = {
+  categories: [],
+  featuredSkills: [],
+  trendingSkills: [],
+  latestSkills: [],
+  latestActivities: [],
+  weeklyContributors: [],
+  sceneCounts: [],
+  tutorials: [],
+  stats: {
+    skillFavorites: 0,
+    qualityTemplates: 0,
+    monthlyVisits: 0,
+    beginnerTutorials: 0,
+  },
+};
 
 export async function getHomepageData(init?: RequestInit): Promise<HomepageData> {
-  const res = await fetchWithTimeout(resolveApiUrl("/api/v1/homepage"), {
-    next: {
-      revalidate: 60,
-    },
-    ...init,
-  });
+  try {
+    const res = await fetchWithSsrTimeout(resolveApiUrl("/api/v1/homepage"), {
+      cache: "no-store",
+      ...init,
+    });
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch homepage data");
+    if (!res.ok) {
+      throw new Error("Failed to fetch homepage data");
+    }
+
+    const json = (await res.json()) as HomepageResponse;
+
+    if (json.code !== 0) {
+      throw new Error(json.message || "Failed to fetch homepage data");
+    }
+
+    return json.data;
+  } catch (error) {
+    if (isRetryableFetchError(error)) {
+      return EMPTY_HOMEPAGE_DATA;
+    }
+    throw error;
   }
-
-  const json = (await res.json()) as HomepageResponse;
-
-  if (json.code !== 0) {
-    throw new Error(json.message || "Failed to fetch homepage data");
-  }
-
-  return json.data;
 }

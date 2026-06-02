@@ -1,24 +1,19 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { HeroButton } from "@/components/HeroButton";
-import { HeroSelect } from "@/components/HeroSelect";
+import { useEffect, useMemo, useState } from "react";
 import { LocalizedLink } from "@/components/LocalizedLink";
+import { SkillCard } from "@/components/SkillCard";
 import { favoriteSkill, getSkills, unfavoriteSkill } from "@/lib/api/skills";
 import { trackEvent } from "@/lib/api/track";
 import { getMessages, type Locale, withLocale } from "@/lib/i18n";
 import type {
   Pagination,
-  SkillCategoryTree,
-  SkillFilterOption,
   SkillFilters,
   SkillListItem,
   SkillListQuery,
   SkillListResponse,
   SkillSort,
-  SkillTag,
 } from "@/lib/types/skills";
 
 type Props = {
@@ -29,66 +24,28 @@ type Props = {
   locale: Locale;
 };
 
+type ViewMode = "grid" | "list";
+type FilterPanelKey = "category" | "type" | "scene";
+
 const categoryIconMap: Record<string, string> = {
-  all: "/skills-icons/filter.svg",
-  writing: "/skills-icons/prompt.svg",
-  coding: "/skills-icons/browse.svg",
-  office: "/skills-icons/tool.svg",
-  design: "/skills-icons/browse.svg",
-  marketing: "/skills-icons/prompt.svg",
-  learning: "/skills-icons/tutorial.svg",
-  video: "/skills-icons/browse.svg",
-  automation: "/skills-icons/agent.svg",
+  all: "/v2skills-filter-icons/all.svg",
+  writing: "/v2skills-filter-icons/write.svg",
+  coding: "/v2skills-filter-icons/code.svg",
+  office: "/v2skills-filter-icons/office.svg",
+  image: "/v2skills-filter-icons/image.svg",
+  video: "/v2skills-filter-icons/video.svg",
+  data: "/v2skills-filter-icons/data.svg",
+  automation: "/v2skills-filter-icons/automation.svg",
+  agent: "/v2skills-filter-icons/agent.svg",
 };
 
-const skillIconMap: Record<string, string> = {
-  prompt: "/skills-icons/prompt.svg",
-  workflow: "/skills-icons/workflow.svg",
-  tutorial: "/skills-icons/tutorial.svg",
-  tool: "/skills-icons/tool.svg",
-  tool_config: "/skills-icons/tool.svg",
-  agent: "/skills-icons/agent.svg",
-  browse: "/skills-icons/browse.svg",
-  user: "/skills-icons/user.svg",
+const typeIconMap: Record<string, string> = {
+  prompt: "/v2skills-filter-icons/prompt-skill.svg",
+  workflow: "/v2skills-filter-icons/workflow-skill.svg",
+  tutorial: "/v2skills-filter-icons/tutorial-skill.svg",
+  tool_config: "/v2skills-filter-icons/type.svg",
+  agent: "/v2skills-filter-icons/agent.svg",
 };
-
-const categoryToneMap: Record<string, string> = {
-  blue: "from-blue-50 to-blue-100/70 text-blue-600",
-  green: "from-emerald-50 to-emerald-100/70 text-emerald-600",
-  orange: "from-orange-50 to-orange-100/70 text-orange-500",
-  purple: "from-violet-50 to-violet-100/70 text-violet-500",
-  rose: "from-rose-50 to-rose-100/70 text-rose-500",
-  indigo: "from-indigo-50 to-indigo-100/70 text-indigo-500",
-  cyan: "from-cyan-50 to-cyan-100/70 text-cyan-500",
-  emerald: "from-emerald-50 to-emerald-100/70 text-emerald-500",
-};
-
-const tagToneMap: Record<string, string> = {
-  scene: "bg-cyan-50 text-cyan-600",
-  type: "bg-orange-50 text-orange-500",
-};
-
-function BoxIcon({
-  src,
-  alt,
-  size,
-  boxClassName,
-}: {
-  src: string;
-  alt: string;
-  size: number;
-  boxClassName?: string;
-}) {
-  return (
-    <span className={`inline-flex items-center justify-center ${boxClassName || ""}`}>
-      <img src={src} alt={alt} width={size} height={size} className="h-auto w-auto" />
-    </span>
-  );
-}
-
-function formatMetric(value: number): string {
-  return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value);
-}
 
 function normalizeQuery(query: SkillListQuery): SkillListQuery {
   return {
@@ -104,143 +61,87 @@ function normalizeQuery(query: SkillListQuery): SkillListQuery {
 
 function buildQueryString(query: SkillListQuery): string {
   const params = new URLSearchParams();
-
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "" && !(key === "page" && value === 1)) {
       params.set(key, String(value));
     }
   });
-
   const qs = params.toString();
   return qs ? `/skills?${qs}` : "/skills";
 }
 
-function SectionTitle({ title, actionLabel, actionHref }: { title: string; actionLabel?: string; actionHref?: string }) {
+function pickCategoryIcon(slug?: string): string {
+  if (!slug) {
+    return categoryIconMap.all;
+  }
+  return categoryIconMap[slug] || categoryIconMap.all;
+}
+
+function buildSceneOptions(filters: SkillFilters, locale: Locale) {
+  if (filters.scenes.length > 0) {
+    return filters.scenes;
+  }
+  return locale === "en"
+    ? []
+    : [
+        { label: "办公", value: "office" },
+        { label: "图片", value: "image" },
+        { label: "视频", value: "video" },
+        { label: "数据", value: "data" },
+        { label: "自动化", value: "automation" },
+      ];
+}
+
+function SidebarSection({
+  title,
+  icon,
+  expanded,
+  onToggle,
+  children,
+}: {
+  title: string;
+  icon: string;
+  expanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="mb-5 flex items-center justify-between gap-3">
-      <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
-      {actionLabel && actionHref ? (
-        <LocalizedLink href={actionHref} className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-brand-600">
-          {actionLabel}
-          <BoxIcon src="/skills-icons/arrow-right.svg" alt="" size={12} boxClassName="h-4 w-4" />
-        </LocalizedLink>
+    <section className="border-t border-[#eef1f6] pt-6 first:border-t-0 first:pt-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="mb-3 flex w-full items-center justify-between gap-3 text-left text-[13px] font-semibold text-[#1f2430]"
+      >
+        <span className="flex items-center gap-2">
+          <img src={icon} alt="" className="h-4.5 w-4.5 opacity-80" />
+          <span>{title}</span>
+        </span>
+        <svg
+          viewBox="0 0 20 20"
+          className={`h-4 w-4 stroke-current text-[#98a1b2] transition ${expanded ? "rotate-180" : ""}`}
+          fill="none"
+          strokeWidth="1.8"
+        >
+          <path d="m5.5 7.5 4.5 5 4.5-5" />
+        </svg>
+      </button>
+      {expanded ? (
+        <div className="max-h-[280px] overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-200">
+          {children}
+        </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 
-function HeroIllustration() {
-  return (
-    <div className="relative mx-auto hidden w-full max-w-[340px] lg:block">
-      <div className="absolute left-6 top-8 h-24 w-24 rounded-full bg-brand-100/70 blur-3xl" />
-      <div className="absolute right-0 top-14 h-28 w-28 rounded-full bg-cyan-100/80 blur-3xl" />
-      <div className="absolute right-2 top-8 h-3.5 w-3.5 rounded-full bg-amber-200/80" />
-      <div className="absolute right-10 top-18 h-3 w-3 rounded-full bg-brand-200/80" />
-      <div className="absolute right-0 top-24 h-3.5 w-3.5 rounded-full bg-rose-100/90" />
-      <div className="absolute left-8 top-14 rotate-[-6deg] rounded-2xl bg-brand-500 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_14px_28px_rgba(37,99,235,0.22)]">
-        <span className="inline-flex items-center gap-2">
-          <BoxIcon src="/skills-icons/prompt.svg" alt="" size={14} boxClassName="h-4 w-4" />
-          {`{ Prompt }`}
-        </span>
-      </div>
-      <div className="absolute left-16 top-[124px] rotate-[-14deg] rounded-[18px] bg-white/90 p-2.5 shadow-[0_14px_34px_rgba(37,99,235,0.12)] ring-1 ring-white/80">
-        <div className="flex h-11 w-10 items-end gap-1.5 rounded-2xl bg-gradient-to-b from-blue-50 to-white px-2.5 pb-2.5 pt-2.5">
-          <span className="h-3.5 w-1.5 rounded-full bg-cyan-200" />
-          <span className="h-6.5 w-1.5 rounded-full bg-brand-300" />
-          <span className="h-9 w-1.5 rounded-full bg-brand-500" />
-        </div>
-      </div>
-      <div className="absolute right-0 top-[120px] rounded-[18px] bg-white/90 p-2.5 shadow-[0_14px_34px_rgba(37,99,235,0.14)] ring-1 ring-white/80">
-        <BoxIcon src="/skills-icons/robot.svg" alt="" size={34} boxClassName="h-12 w-12" />
-      </div>
-      <div className="absolute right-6 bottom-12 rounded-[16px] bg-brand-500 p-3 shadow-[0_14px_30px_rgba(37,99,235,0.24)]">
-        <BoxIcon src="/skills-icons/browse.svg" alt="" size={18} boxClassName="h-6 w-6" />
-      </div>
-
-      <div className="relative ml-auto mt-3 rounded-[24px] border border-white/80 bg-white/80 p-3 shadow-[0_20px_54px_rgba(37,99,235,0.12)] backdrop-blur">
-        <div className="rounded-[20px] border border-slate-100 bg-gradient-to-br from-white via-white to-slate-50 p-3.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Image
-                src="/icons/skillnetic_app_icon_card.png"
-                alt="skillnetic.ai"
-                width={285}
-                height={295}
-                className="h-7 w-7 rounded-lg"
-              />
-              <span className="text-sm font-semibold text-slate-900">skillnetic.ai</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-brand-200" />
-              <span className="h-2.5 w-2.5 rounded-full bg-brand-300" />
-              <span className="h-2.5 w-2.5 rounded-full bg-brand-500" />
-            </div>
-          </div>
-
-          <div className="mt-3.5 rounded-[20px] border border-slate-100 bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-2.5 rounded-full border border-slate-100 bg-slate-50 px-3.5 py-2">
-              <BoxIcon src="/skills-icons/search.svg" alt="" size={14} boxClassName="h-4 w-4" />
-              <div className="h-2.5 w-32 rounded-full bg-slate-200/80" />
-              <span className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-500 shadow-sm">
-                <BoxIcon src="/skills-icons/search.svg" alt="" size={11} boxClassName="h-3 w-3" />
-              </span>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="rounded-2xl bg-blue-50 p-2">
-                <div className="h-3.5 w-9 rounded-full bg-blue-200" />
-                <div className="mt-2 space-y-1.5 rounded-xl bg-white p-2 shadow-sm">
-                  <div className="h-2.5 w-full rounded-full bg-slate-100" />
-                  <div className="h-2.5 w-4/5 rounded-full bg-slate-100" />
-                  <div className="h-6 rounded-xl bg-blue-50" />
-                </div>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-2">
-                <div className="h-3.5 w-9 rounded-full bg-slate-200" />
-                <div className="mt-2 space-y-1.5 rounded-xl bg-white p-2 shadow-sm">
-                  <div className="h-2.5 w-full rounded-full bg-slate-100" />
-                  <div className="h-2.5 w-3/4 rounded-full bg-slate-100" />
-                  <div className="h-6 rounded-xl bg-slate-100" />
-                </div>
-              </div>
-              <div className="rounded-2xl bg-cyan-50 p-2">
-                <div className="h-3.5 w-9 rounded-full bg-cyan-200" />
-                <div className="mt-2 space-y-1.5 rounded-xl bg-white p-2 shadow-sm">
-                  <div className="h-2.5 w-full rounded-full bg-slate-100" />
-                  <div className="h-2.5 w-2/3 rounded-full bg-slate-100" />
-                  <div className="h-6 rounded-xl bg-cyan-50" />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-[1.08fr_0.92fr] gap-2">
-              <div className="rounded-2xl bg-brand-50 p-2.5">
-                <div className="h-13 rounded-xl bg-white shadow-sm" />
-              </div>
-              <div className="rounded-2xl bg-indigo-50 p-2.5">
-                <div className="flex h-13 items-end gap-1.5 rounded-xl bg-white px-2.5 py-2.5 shadow-sm">
-                  <span className="h-5 w-2 rounded-full bg-brand-200" />
-                  <span className="h-8 w-2 rounded-full bg-brand-300" />
-                  <span className="h-10.5 w-2 rounded-full bg-brand-500" />
-                  <span className="h-6.5 w-2 rounded-full bg-cyan-300" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CategoryShortcut({
-  iconSrc,
+function SidebarOption({
   label,
+  icon,
   active,
   onClick,
 }: {
-  iconSrc: string;
   label: string;
+  icon: string;
   active: boolean;
   onClick: () => void;
 }) {
@@ -248,236 +149,13 @@ function CategoryShortcut({
     <button
       type="button"
       onClick={onClick}
-      className={`group rounded-[24px] border px-4 py-5 text-center shadow-sm transition hover:-translate-y-0.5 ${
-        active ? "border-brand-200 bg-brand-50/70" : "border-white/80 bg-white/90 hover:border-brand-100"
+      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition ${
+        active ? "bg-[#f3f1ff] font-semibold text-[#4f46ff]" : "text-[#30384a] hover:bg-[#f8f9fc]"
       }`}
     >
-      <span className={`mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${active ? "from-brand-100 to-brand-50 text-brand-600" : "from-slate-50 to-slate-100 text-slate-600"}`}>
-        <BoxIcon src={iconSrc} alt={label} size={28} boxClassName="h-9 w-9" />
-      </span>
-      <span className="mt-4 block text-sm font-semibold text-slate-900">{label}</span>
+      <img src={icon} alt="" className={`h-4.5 w-4.5 ${active ? "" : "opacity-80"}`} />
+      <span>{label}</span>
     </button>
-  );
-}
-
-function FilterChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-        active ? "border-brand-200 bg-brand-50 text-brand-600" : "border-slate-200 bg-white text-slate-600 hover:border-brand-100 hover:text-brand-600"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function FilterRow({
-  label,
-  allLabel,
-  moreLabel,
-  lessLabel,
-  activeValue,
-  options,
-  onClick,
-  collapsible = false,
-  expanded = false,
-  onToggleExpand,
-}: {
-  label: string;
-  allLabel: string;
-  moreLabel: string;
-  lessLabel: string;
-  activeValue?: string;
-  options: SkillFilterOption[];
-  onClick: (value?: string) => void;
-  collapsible?: boolean;
-  expanded?: boolean;
-  onToggleExpand?: () => void;
-}) {
-  const shouldShowAll = expanded || (!!activeValue && options.slice(8).some((option) => option.value === activeValue));
-  const visibleOptions = collapsible && !shouldShowAll ? options.slice(0, 8) : options;
-  const hasMore = collapsible && options.length > 8;
-
-  return (
-    <div className="grid gap-3 md:grid-cols-[72px_1fr]">
-      <div className="pt-2 text-sm font-semibold text-slate-700">{label}</div>
-      <div className="flex flex-wrap gap-2">
-        <FilterChip label={allLabel} active={!activeValue} onClick={() => onClick(undefined)} />
-        {visibleOptions.map((option) => (
-          <FilterChip
-            key={`${label}-${option.value}`}
-            label={option.label}
-            active={activeValue === option.value}
-            onClick={() => onClick(option.value)}
-          />
-        ))}
-        {hasMore ? (
-          <button
-            type="button"
-            onClick={onToggleExpand}
-            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-brand-100 hover:text-brand-600"
-          >
-            {shouldShowAll ? lessLabel : moreLabel}
-            <span className={`transition ${shouldShowAll ? "-rotate-90" : "rotate-90"}`}>
-              <BoxIcon src="/skills-icons/arrow-right.svg" alt="" size={10} boxClassName="h-3 w-3" />
-            </span>
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function CategoryFilterSection({
-  label,
-  allLabel,
-  activeValue,
-  groups,
-  onClick,
-}: {
-  label: string;
-  allLabel: string;
-  activeValue?: string;
-  groups: SkillCategoryTree[];
-  onClick: (value?: string) => void;
-}) {
-  return (
-    <div className="grid gap-3 md:grid-cols-[72px_1fr]">
-      <div className="pt-2 text-sm font-semibold text-slate-700">{label}</div>
-      <div className="flex flex-wrap gap-2">
-        <FilterChip label={allLabel} active={!activeValue} onClick={() => onClick(undefined)} />
-        {groups.map((parent) => {
-          const hasActiveChild = (parent.children || []).some((child) => child.slug === activeValue);
-          const isActiveParent = activeValue === parent.slug || hasActiveChild;
-
-          return (
-            <FilterChip
-              key={parent.id}
-              label={parent.name}
-              active={isActiveParent}
-              onClick={() => onClick(parent.slug)}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function TagBadge({ tag }: { tag: SkillTag }) {
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${tagToneMap[tag.type] || "bg-slate-100 text-slate-600"}`}>
-      {tag.name}
-    </span>
-  );
-}
-
-function SkillCard({
-  skill,
-  onOpen,
-  onFavorite,
-  locale,
-  copy,
-}: {
-  skill: SkillListItem;
-  onOpen: (skill: SkillListItem) => void;
-  onFavorite: (skill: SkillListItem) => Promise<void>;
-  locale: Locale;
-  copy: ReturnType<typeof getMessages>["skills"];
-}) {
-  const iconSrc = skill.coverIcon ? skillIconMap[skill.coverIcon] : undefined;
-  const tone = categoryToneMap[skill.category.color] || categoryToneMap.blue;
-
-  return (
-    <article
-      onClick={() => onOpen(skill)}
-      className="cursor-pointer rounded-[24px] border border-slate-200/80 bg-white/94 p-6 shadow-[0_14px_40px_rgba(15,23,42,0.05)] transition hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(37,99,235,0.12)]"
-    >
-      <div className="flex items-start gap-4">
-        <div className={`inline-flex h-16 w-16 items-center justify-center rounded-[20px] bg-gradient-to-br ${tone}`}>
-          {iconSrc ? (
-            <BoxIcon src={iconSrc} alt={skill.title} size={28} boxClassName="h-11 w-11 rounded-2xl bg-white/92 shadow-sm" />
-          ) : (
-            <span className="text-lg font-semibold">{skill.title.slice(0, 1)}</span>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                {skill.isHot ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-500 shadow-sm">
-                    <BoxIcon src="/skills-icons/hot.svg" alt="" size={12} boxClassName="h-3.5 w-3.5" />
-                    {copy.hot}
-                  </span>
-                ) : null}
-                <h3 className="truncate text-lg font-semibold leading-none text-slate-900">{skill.title}</h3>
-              </div>
-              <p className="mt-3 text-sm leading-7 text-slate-500">{skill.summary}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        {skill.tags.filter((tag) => tag.type !== "difficulty").slice(0, 4).map((tag) => (
-          <TagBadge key={tag.id} tag={tag} />
-        ))}
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-        <span className="inline-flex items-center gap-1.5">
-          <BoxIcon src="/skills-icons/favorite-heart.svg" alt="" size={12} boxClassName="h-4 w-4" />
-          {locale === "en"
-            ? `${formatMetric(skill.favoriteCount)} ${copy.card.favoritesSuffix}`
-            : `${formatMetric(skill.favoriteCount)} ${copy.card.favoritesSuffix}`}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <BoxIcon src="/skills-icons/user.svg" alt="" size={12} boxClassName="h-4 w-4" />
-          {`${formatMetric(skill.viewCount)} ${copy.card.viewsSuffix}`}
-        </span>
-      </div>
-
-      <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpen(skill);
-          }}
-          className="rounded-xl border border-brand-200 bg-white px-4 py-3 text-sm font-semibold text-brand-600 transition hover:bg-brand-50"
-        >
-          {copy.card.details}
-        </button>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            void onFavorite(skill);
-          }}
-          className={`inline-flex items-center justify-center gap-2 rounded-xl border bg-white px-4 py-3 text-sm font-semibold transition ${
-            skill.isFavorited
-              ? "border-brand-200 text-brand-600"
-              : "border-slate-200 text-slate-700 hover:border-brand-200 hover:text-brand-600"
-          }`}
-        >
-          <BoxIcon src="/skills-icons/favorite-heart.svg" alt="" size={14} boxClassName="h-4 w-4" />
-          {skill.isFavorited ? (locale === "en" ? "Favorited" : "已收藏") : copy.card.favorite}
-        </button>
-      </div>
-    </article>
   );
 }
 
@@ -490,48 +168,49 @@ export function SkillsLibraryPage({
 }: Props) {
   const router = useRouter();
   const copy = getMessages(locale).skills;
-  const hotKeywords =
-    locale === "en"
-      ? ["Xiaohongshu copy", "Resume polish", "Excel analysis", "Code explain", "PPT outline", "Meeting notes"]
-      : ["小红书文案", "简历优化", "Excel 分析", "代码解释", "PPT 大纲", "会议纪要"];
+  const [searchKeyword, setSearchKeyword] = useState(initialQuery.q || "");
+  const [skills, setSkills] = useState<SkillListItem[]>(initialResponse.list);
+  const [pagination, setPagination] = useState<Pagination>(initialResponse.pagination);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState("");
+  const [favoriteMessage, setFavoriteMessage] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [expandedPanels, setExpandedPanels] = useState<Record<FilterPanelKey, boolean>>({
+    category: true,
+    type: true,
+    scene: true,
+  });
+
+  const currentQuery = normalizeQuery(initialQuery);
+  const currentPagePath = withLocale(locale, buildQueryString(currentQuery));
+  const sceneOptions = useMemo(() => buildSceneOptions(filters, locale), [filters, locale]);
+  const categoryOptions = useMemo(
+    () => [{ label: copy.filters.all, value: "all" }, ...filters.categories],
+    [copy.filters.all, filters.categories],
+  );
+  const typeOptions = useMemo(
+    () => [{ label: copy.filters.all, value: "all" }, ...filters.types],
+    [copy.filters.all, filters.types],
+  );
   const sortOptions: Array<{ label: string; value: SkillSort }> = [
     { label: copy.sort.latest, value: "latest" },
     { label: copy.sort.popular, value: "popular" },
     { label: copy.sort.favorites, value: "favorites" },
     { label: copy.sort.views, value: "views" },
   ];
-  const [searchKeyword, setSearchKeyword] = useState(initialQuery.q || "");
-  const [skills, setSkills] = useState<SkillListItem[]>(initialResponse.list);
-  const [pagination, setPagination] = useState<Pagination>(initialResponse.pagination);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [loadMoreError, setLoadMoreError] = useState("");
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [isSceneExpanded, setIsSceneExpanded] = useState(false);
-  const [favoriteMessage, setFavoriteMessage] = useState("");
-
-  const currentQuery = normalizeQuery(initialQuery);
-  const shortcutCategories: SkillFilterOption[] = [{ label: copy.filters.allCategories, value: "all" }, ...filters.categories];
-  const hasActiveFilters = Boolean(
-    currentQuery.q || currentQuery.category || currentQuery.scene || currentQuery.type,
-  );
-  const currentPagePath = withLocale(locale, buildQueryString(currentQuery));
 
   useEffect(() => {
     setSearchKeyword(initialQuery.q || "");
     setSkills(initialResponse.list);
     setPagination(initialResponse.pagination);
     setLoadMoreError("");
-    setIsFilterPanelOpen(false);
-    setIsSceneExpanded(false);
   }, [initialQuery.q, initialResponse, queryKey]);
 
   useEffect(() => {
     if (!favoriteMessage) {
       return;
     }
-    const timer = window.setTimeout(() => {
-      setFavoriteMessage("");
-    }, 1000);
+    const timer = window.setTimeout(() => setFavoriteMessage(""), 1200);
     return () => window.clearTimeout(timer);
   }, [favoriteMessage]);
 
@@ -563,6 +242,18 @@ export function SkillsLibraryPage({
     });
   }
 
+  function clearFilters() {
+    setSearchKeyword("");
+    pushQuery({ sort: currentQuery.sort || "latest", page: 1, pageSize: currentQuery.pageSize || 9 });
+  }
+
+  function togglePanel(key: FilterPanelKey) {
+    setExpandedPanels((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  }
+
   function openSkill(skill: SkillListItem) {
     trackEvent({
       eventName: "skills_card_click",
@@ -581,32 +272,26 @@ export function SkillsLibraryPage({
     if (isLoadingMore || pagination.page >= pagination.totalPages) {
       return;
     }
-
     setIsLoadingMore(true);
     setLoadMoreError("");
-
     try {
+      const nextPage = pagination.page + 1;
       trackEvent({
         eventName: "skills_load_more_click",
         pageUrl: currentPagePath,
         targetType: "button",
         targetId: "load_more",
-        extra: {
-          nextPage: pagination.page + 1,
-        },
+        extra: { nextPage },
       });
-
-      const nextPage = pagination.page + 1;
       const response = await getSkills({
         ...currentQuery,
         page: nextPage,
         pageSize: pagination.pageSize,
       });
-
       setSkills((prev) => [...prev, ...response.list]);
       setPagination(response.pagination);
-    } catch (error) {
-      setLoadMoreError(locale === "en" ? "Failed to load more. Please try again later." : "加载更多失败，请稍后重试。");
+    } catch {
+      setLoadMoreError(locale === "en" ? "Failed to load more." : "加载更多失败。");
     } finally {
       setIsLoadingMore(false);
     }
@@ -628,44 +313,132 @@ export function SkillsLibraryPage({
       setSkills((current) =>
         current.map((item) =>
           item.id === skill.id
-            ? {
-                ...item,
-                isFavorited: result.favorited,
-                favoriteCount: result.favoriteCount,
-              }
+            ? { ...item, isFavorited: result.favorited, favoriteCount: result.favoriteCount }
             : item,
         ),
       );
-      setFavoriteMessage(
-        result.favorited
-          ? (locale === "en" ? "Favorited" : "已收藏")
-          : (locale === "en" ? "Removed from favorites" : "已取消收藏"),
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (message.toLowerCase().includes("unauthorized")) {
-        setFavoriteMessage(locale === "en" ? "Please log in first" : "请先登录");
-        return;
-      }
-      setFavoriteMessage(locale === "en" ? "Favorite failed, please try again" : "收藏失败，请稍后重试");
+      setFavoriteMessage(result.favorited ? (locale === "en" ? "Favorited" : "已收藏") : (locale === "en" ? "Removed" : "已取消"));
+    } catch {
+      setFavoriteMessage(locale === "en" ? "Action failed" : "操作失败");
     }
   }
 
   return (
-    <div className="min-h-screen">
-      <section className="overflow-hidden border-b border-white/60 bg-gradient-to-br from-[#f7fbff] via-[#eef5ff] to-[#f8fbff]">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 pb-8 pt-8 sm:px-6 lg:grid-cols-[1.18fr_0.82fr] lg:px-8 lg:pt-10">
-          <div className="pt-1">
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-[50px] lg:leading-[1.08]">
-              {copy.hero.titlePrefix} <span className="text-brand-600">{copy.hero.titleHighlight}</span> {copy.hero.titleSuffix}
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              {copy.hero.description}
-            </p>
+    <main className="min-h-[max(760px,calc(100vh-88px))] overflow-x-auto bg-white">
+      {favoriteMessage ? (
+        <div className="fixed right-6 top-20 z-50 rounded-2xl border border-[#e4e7ff] bg-white px-4 py-3 text-sm font-medium text-[#6c5ce7] shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
+          {favoriteMessage}
+        </div>
+      ) : null}
 
+      <div className="mx-auto grid min-h-[max(720px,calc(100vh-112px))] min-w-[1240px] max-w-[1760px] gap-6 px-5 pb-4 pt-3 lg:px-8 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="xl:sticky xl:h-[calc(100vh-120px)]">
+          <div className="mb-5 px-1">
+            <h1 className="text-[44px] font-semibold leading-none tracking-tight text-[#0f1728]">
+              {locale === "en" ? "Skills" : "技能库"}
+            </h1>
+          </div>
+
+          <aside className="flex h-[calc(100%-76px)] min-h-[640px] flex-col overflow-hidden rounded-[24px] border border-[#edf1f6] bg-white px-5 py-6 shadow-[0_10px_32px_rgba(15,23,42,0.04)]">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-[18px] font-semibold text-[#171c28]">{copy.filters.title}</h2>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-2 text-[13px] font-medium text-[#98a1b2] transition hover:text-[#4f46ff]"
+              >
+                <img src="/v2skills-filter-icons/clear-filter.svg" alt="" className="h-4.5 w-4.5" />
+                <span>{copy.filters.clear}</span>
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-7 overflow-y-auto pr-2">
+              <SidebarSection
+                title={copy.filters.category}
+                icon="/v2skills-filter-icons/category.svg"
+                expanded={expandedPanels.category}
+                onToggle={() => togglePanel("category")}
+              >
+                <div className="space-y-1">
+                  {categoryOptions.map((option) => (
+                    <SidebarOption
+                      key={option.value}
+                      label={option.label}
+                      icon={pickCategoryIcon(option.value === "all" ? undefined : option.value)}
+                      active={(option.value === "all" && !currentQuery.category) || currentQuery.category === option.value}
+                      onClick={() =>
+                        updateQuery({ category: option.value === "all" ? undefined : option.value })
+                      }
+                    />
+                  ))}
+                </div>
+              </SidebarSection>
+
+              <SidebarSection
+                title={copy.filters.type}
+                icon="/v2skills-filter-icons/type.svg"
+                expanded={expandedPanels.type}
+                onToggle={() => togglePanel("type")}
+              >
+                <div className="space-y-1">
+                  {typeOptions.map((option) => (
+                    <SidebarOption
+                      key={option.value}
+                      label={option.label}
+                      icon={option.value === "all" ? categoryIconMap.all : typeIconMap[option.value] || "/v2skills-filter-icons/type.svg"}
+                      active={(option.value === "all" && !currentQuery.type) || currentQuery.type === option.value}
+                      onClick={() =>
+                        updateQuery({ type: option.value === "all" ? undefined : option.value })
+                      }
+                    />
+                  ))}
+                </div>
+              </SidebarSection>
+
+              {sceneOptions.length > 0 ? (
+                <SidebarSection
+                  title={copy.filters.scene}
+                  icon="/v2skills-filter-icons/category.svg"
+                  expanded={expandedPanels.scene}
+                  onToggle={() => togglePanel("scene")}
+                >
+                  <div className="space-y-1">
+                    <SidebarOption
+                      label={copy.filters.all}
+                      icon={categoryIconMap.all}
+                      active={!currentQuery.scene}
+                      onClick={() => updateQuery({ scene: undefined })}
+                    />
+                    {sceneOptions.map((option) => (
+                      <SidebarOption
+                        key={option.value}
+                        label={option.label}
+                        icon={pickCategoryIcon(option.value)}
+                        active={currentQuery.scene === option.value}
+                        onClick={() => updateQuery({ scene: option.value })}
+                      />
+                    ))}
+                  </div>
+                </SidebarSection>
+              ) : null}
+
+              <div className="border-t border-[#eef1f6] pt-5">
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                className="inline-flex items-center gap-2.5 text-[15px] font-medium text-[#30384a] transition hover:text-[#4f46ff]"
+                >
+                  <img src="/v2skills-filter-icons/clear-filter.svg" alt="" className="h-5 w-5" />
+                  <span>{copy.filters.clear}</span>
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <section className="min-w-0 xl:flex xl:h-[calc(100vh-120px)] xl:min-h-0 xl:flex-col">
+          <div className="mb-8 shrink-0">
             <form
-              id="skills-search"
-              className="mt-6 max-w-[680px]"
               onSubmit={(event) => {
                 event.preventDefault();
                 trackEvent({
@@ -673,327 +446,138 @@ export function SkillsLibraryPage({
                   pageUrl: currentPagePath,
                   targetType: "search",
                   targetId: null,
-                  extra: {
-                    keyword: searchKeyword.trim(),
-                  },
+                  extra: { keyword: searchKeyword.trim() },
                 });
                 updateQuery({ q: searchKeyword.trim() || undefined });
               }}
+              className="relative"
             >
-              <div className="flex flex-col gap-3 rounded-[20px] border border-white/80 bg-white/92 p-2.5 shadow-[0_10px_30px_rgba(37,99,235,0.08)] sm:flex-row sm:items-center">
-                <label className="flex min-w-0 flex-1 items-center gap-3 px-3 py-1.5">
-                  <BoxIcon src="/skills-icons/search.svg" alt={copy.search} size={16} boxClassName="h-5 w-5" />
-                  <input
-                    value={searchKeyword}
-                    onChange={(event) => setSearchKeyword(event.target.value)}
-                    placeholder={copy.hero.placeholder}
-                    className="w-full border-0 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-400"
-                  />
-                </label>
-                <HeroButton
-                  type="submit"
-                  className="rounded-2xl bg-brand-500 px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
-                >
-                  {copy.search}
-                </HeroButton>
-              </div>
-            </form>
-
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium text-slate-500">{copy.hotSearch}</span>
-              {hotKeywords.map((keyword) => (
-                <button
-                  key={keyword}
-                  type="button"
-                  onClick={() => {
-                    setSearchKeyword(keyword);
-                    trackEvent({
-                      eventName: "skills_hot_keyword_click",
-                      pageUrl: currentPagePath,
-                      targetType: "keyword",
-                      targetId: keyword,
-                      extra: {
-                        keyword,
-                      },
-                    });
-                    updateQuery({ q: keyword });
-                  }}
-                  className="rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-medium text-brand-600 shadow-sm transition hover:border-brand-200"
-                >
-                  {keyword}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-start justify-end pt-0.5">
-            <HeroIllustration />
-          </div>
-        </div>
-      </section>
-
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <section className="rounded-[28px] border border-white/80 bg-white/88 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:p-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-9">
-            {shortcutCategories.map((category) => (
-              <CategoryShortcut
-                key={category.value}
-                iconSrc={categoryIconMap[category.value] || "/skills-icons/filter.svg"}
-                label={category.label}
-                active={(category.value === "all" && !currentQuery.category) || currentQuery.category === category.value}
-                onClick={() => {
-                  trackEvent({
-                    eventName: "skills_category_shortcut_click",
-                    pageUrl: currentPagePath,
-                    targetType: "category",
-                    targetId: category.value,
-                    extra: {
-                      category: category.value === "all" ? "" : category.value,
-                    },
-                  });
-                  updateQuery({ category: category.value === "all" ? undefined : category.value });
-                }}
+              <input
+                value={searchKeyword}
+                onChange={(event) => setSearchKeyword(event.target.value)}
+                placeholder={copy.hero.placeholder}
+                className="h-[64px] w-full rounded-[24px] border border-[#e7ebf2] bg-white pl-6 pr-18 text-[16px] text-[#1f2430] shadow-[0_8px_24px_rgba(15,23,42,0.03)] outline-none placeholder:text-[#b3bac8]"
               />
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-[28px] border border-white/80 bg-white/92 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)]">
-          <div className="mb-6 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <BoxIcon src="/skills-icons/filter.svg" alt="" size={15} boxClassName="h-5 w-5" />
-              {copy.filters.title}
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsFilterPanelOpen((prev) => !prev)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 md:hidden"
-            >
-              {isFilterPanelOpen ? copy.filters.collapse : copy.filters.expand}
-            </button>
-          </div>
-
-          <div className={`${isFilterPanelOpen ? "block" : "hidden"} space-y-5 md:block`}>
-            {filters.categoryTree.length > 0 ? (
-              <CategoryFilterSection
-                label={copy.filters.category}
-                allLabel={copy.filters.all}
-                activeValue={currentQuery.category}
-                groups={filters.categoryTree}
-                onClick={(value) => {
-                  trackEvent({
-                    eventName: "skills_filter_category_click",
-                    pageUrl: currentPagePath,
-                    targetType: "filter",
-                    targetId: value || "all",
-                    extra: {
-                      category: value || "",
-                    },
-                  });
-                  updateQuery({ category: value });
-                }}
-              />
-            ) : (
-              <FilterRow
-                label={copy.filters.category}
-                allLabel={copy.filters.all}
-                moreLabel={copy.filters.more}
-                lessLabel={copy.filters.less}
-                activeValue={currentQuery.category}
-                options={filters.categories}
-                onClick={(value) => {
-                  trackEvent({
-                    eventName: "skills_filter_category_click",
-                    pageUrl: currentPagePath,
-                    targetType: "filter",
-                    targetId: value || "all",
-                    extra: {
-                      category: value || "",
-                    },
-                  });
-                  updateQuery({ category: value });
-                }}
-              />
-            )}
-            <FilterRow
-              label={copy.filters.scene}
-              allLabel={copy.filters.all}
-              moreLabel={copy.filters.more}
-              lessLabel={copy.filters.less}
-              activeValue={currentQuery.scene}
-              options={filters.scenes}
-              collapsible
-              expanded={isSceneExpanded}
-              onToggleExpand={() => setIsSceneExpanded((prev) => !prev)}
-              onClick={(value) => {
-                trackEvent({
-                  eventName: "skills_filter_scene_click",
-                  pageUrl: currentPagePath,
-                  targetType: "filter",
-                  targetId: value || "all",
-                  extra: {
-                    scene: value || "",
-                  },
-                });
-                updateQuery({ scene: value });
-              }}
-            />
-            <FilterRow
-              label={copy.filters.type}
-              allLabel={copy.filters.all}
-              moreLabel={copy.filters.more}
-              lessLabel={copy.filters.less}
-              activeValue={currentQuery.type}
-              options={filters.types}
-              onClick={(value) => {
-                trackEvent({
-                  eventName: "skills_filter_type_click",
-                  pageUrl: currentPagePath,
-                  targetType: "filter",
-                  targetId: value || "all",
-                  extra: {
-                    type: value || "",
-                  },
-                });
-                updateQuery({ type: value });
-              }}
-            />
-          </div>
-
-          {hasActiveFilters ? (
-            <div className="mt-5 flex justify-start">
               <button
-                type="button"
-                onClick={() => {
-                  setSearchKeyword("");
-                  pushQuery({ sort: currentQuery.sort || "latest", page: 1, pageSize: currentQuery.pageSize || 9 });
-                }}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-brand-200 hover:text-brand-600"
+                type="submit"
+                className="absolute right-5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-[#9aa3b2] transition hover:bg-[#f8f9fc] hover:text-[#5f6779]"
+                aria-label={copy.search}
               >
-                {copy.filters.clear}
+                <svg viewBox="0 0 20 20" className="h-6 w-6 stroke-current" fill="none" strokeWidth="1.8">
+                  <circle cx="9" cy="9" r="5.6" />
+                  <path d="m13.4 13.4 4 4" />
+                </svg>
               </button>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="mt-6">
-          {favoriteMessage ? (
-            <div className="pointer-events-none fixed right-4 top-20 z-50 rounded-2xl border border-emerald-200 bg-white/96 px-4 py-3 text-sm font-medium text-emerald-700 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur sm:right-6">
-              {favoriteMessage}
-            </div>
-          ) : null}
-          <div className="mb-5 flex flex-col gap-4 rounded-[24px] border border-white/80 bg-white/88 px-5 py-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-lg font-semibold text-slate-900">{copy.results.replace("{count}", String(pagination.total))}</p>
-            <div className="inline-flex items-center gap-3 self-start rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-              <BoxIcon src="/skills-icons/sort.svg" alt="" size={14} boxClassName="h-4 w-4" />
-              {copy.sort.label}
-              <HeroSelect
-                ariaLabel={copy.sort.label}
-                value={currentQuery.sort || "latest"}
-                onChange={(value) => {
-                  const nextValue = value as SkillSort;
-                  trackEvent({
-                    eventName: "skills_sort_change",
-                    pageUrl: currentPagePath,
-                    targetType: "sort",
-                    targetId: nextValue,
-                    extra: {
-                      sort: nextValue,
-                    },
-                  });
-                  updateQuery({ sort: nextValue });
-                }}
-                options={sortOptions.map((option) => ({ label: option.label, value: option.value }))}
-                className="min-w-[140px]"
-                triggerClassName="min-w-[140px] border-0 bg-transparent px-0 py-0 text-left text-sm font-semibold text-slate-900 shadow-none"
-                popoverClassName="min-w-[180px]"
-              />
-            </div>
+            </form>
           </div>
 
-          {skills.length === 0 ? (
-            <div className="rounded-[28px] border border-slate-200 bg-white/92 p-10 text-center shadow-sm">
-              <h3 className="text-2xl font-semibold text-slate-900">{copy.empty.title}</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-500">{copy.empty.description}</p>
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => pushQuery({ sort: "latest", page: 1, pageSize: 9 })}
-                  className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
-                >
-                  {copy.empty.clear}
-                </button>
-                <LocalizedLink href="/submit" className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white">
-                  {copy.empty.submit}
-                </LocalizedLink>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="grid gap-6 lg:grid-cols-3">
-                {skills.map((skill) => (
-                  <SkillCard key={skill.id} skill={skill} onOpen={openSkill} onFavorite={handleFavorite} locale={locale} copy={copy} />
-                ))}
+          <section className="min-h-0 flex-1 xl:overflow-y-auto xl:pr-2">
+            <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-end gap-4">
+                <h2 className="text-[26px] font-semibold tracking-tight text-[#0f1728]">
+                  {locale === "en" ? "All Skills" : "全部 Skill"}
+                </h2>
+                <span className="pb-1 text-[14px] text-[#7a8395]">
+                  {locale === "en" ? `${pagination.total} items` : `共 ${pagination.total} 个`}
+                </span>
               </div>
 
-              <div className="mt-8 text-center">
-                {pagination.page < pagination.totalPages ? (
+              <div className="flex items-center gap-3 self-start">
+                <label className="text-[14px] text-[#7a8395]">{copy.sort.label}</label>
+                <select
+                  value={currentQuery.sort || "latest"}
+                  onChange={(event) => updateQuery({ sort: event.target.value as SkillSort })}
+                  className="h-10 rounded-xl border border-[#e7ebf2] bg-white px-3.5 text-[14px] text-[#1f2430] outline-none"
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="ml-1 inline-flex rounded-xl border border-[#edf1f6] bg-white p-1 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
                   <button
                     type="button"
-                    onClick={loadMore}
-                    disabled={isLoadingMore}
-                    className="rounded-full border border-slate-200 bg-white px-8 py-3 text-sm font-semibold text-brand-600 shadow-sm transition hover:border-brand-200 disabled:opacity-60"
+                    onClick={() => setViewMode("grid")}
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${viewMode === "grid" ? "bg-[#f3f1ff] text-[#4f46ff]" : "text-[#98a1b2]"}`}
+                    aria-label="grid"
                   >
-                    {isLoadingMore ? copy.loadingMore : copy.loadMore}
+                    <span className="grid grid-cols-2 gap-1">
+                      <span className="h-2 w-2 rounded-[3px] bg-current" />
+                      <span className="h-2 w-2 rounded-[3px] bg-current" />
+                      <span className="h-2 w-2 rounded-[3px] bg-current" />
+                      <span className="h-2 w-2 rounded-[3px] bg-current" />
+                    </span>
                   </button>
-                ) : (
-                  <p className="text-sm text-slate-400">{copy.reachedEnd}</p>
-                )}
-                {loadMoreError ? <p className="mt-3 text-sm text-rose-500">{loadMoreError}</p> : null}
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("list")}
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${viewMode === "list" ? "bg-[#f3f1ff] text-[#4f46ff]" : "text-[#98a1b2]"}`}
+                    aria-label="list"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="h-0.5 w-4.5 rounded-full bg-current" />
+                      <span className="h-0.5 w-4.5 rounded-full bg-current" />
+                      <span className="h-0.5 w-4.5 rounded-full bg-current" />
+                    </span>
+                  </button>
+                </div>
               </div>
-            </>
-          )}
-        </section>
+            </div>
 
-        <section className="mt-14 rounded-[30px] border border-white/80 bg-gradient-to-r from-[#f8fbff] via-white to-[#f4f8ff] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4">
-              <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-50 to-cyan-50 shadow-sm ring-1 ring-white/90">
-                <BoxIcon src="/skills-icons/submit.svg" alt="" size={34} boxClassName="h-10 w-10" />
-              </span>
-              <div>
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900">{copy.cta.title}</h2>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                  {copy.cta.description}
-                </p>
+            {skills.length === 0 ? (
+              <div className="rounded-[24px] border border-[#edf1f6] bg-white p-12 text-center shadow-[0_8px_28px_rgba(15,23,42,0.04)]">
+                <h3 className="text-[24px] font-semibold text-[#171c28]">{copy.empty.title}</h3>
+                <p className="mt-3 text-[15px] text-[#7a8395]">{copy.empty.description}</p>
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="rounded-xl border border-slate-200 bg-white px-4.5 py-2.5 text-sm font-semibold text-slate-700"
+                  >
+                    {copy.empty.clear}
+                  </button>
+                  <LocalizedLink href="/submit" className="rounded-xl bg-[#6c5ce7] px-4.5 py-2.5 text-sm font-semibold text-white">
+                    {copy.empty.submit}
+                  </LocalizedLink>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <LocalizedLink
-                href="/submit"
-                onClick={() =>
-                  trackEvent({
-                    eventName: "skills_submit_skill_click",
-                    pageUrl: currentPagePath,
-                    targetType: "button",
-                    targetId: "submit_skill",
-                    extra: {},
-                  })
-                }
-                className="min-w-[144px] rounded-2xl bg-brand-500 px-6 py-3 text-center text-sm font-semibold text-white"
-              >
-                {copy.cta.submit}
-              </LocalizedLink>
-              <LocalizedLink
-                href="/skills?sort=latest"
-                className="min-w-[144px] rounded-2xl border border-slate-200 bg-white px-6 py-3 text-center text-sm font-semibold text-brand-600"
-              >
-                {copy.cta.latest}
-              </LocalizedLink>
-            </div>
-          </div>
+            ) : (
+              <>
+                <div className={`grid gap-4 ${viewMode === "grid" ? "xl:grid-cols-3" : "grid-cols-1"}`}>
+                  {skills.map((skill) => (
+                    <SkillCard
+                      key={skill.id}
+                      skill={skill}
+                      variant={viewMode === "grid" ? "grid" : "compact"}
+                      favoriteLabel={copy.card.favorite}
+                      onFavorite={() => handleFavorite(skill)}
+                      onOpen={() => openSkill(skill)}
+                    />
+                  ))}
+                </div>
+
+                <div className="mt-5 flex flex-col items-center gap-3">
+                  {pagination.page < pagination.totalPages ? (
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      disabled={isLoadingMore}
+                      className="rounded-full border border-slate-200 bg-white px-7 py-2.5 text-sm font-semibold text-[#6c5ce7] shadow-[0_8px_20px_rgba(15,23,42,0.04)] transition hover:border-[#d9d2ff] disabled:opacity-60"
+                    >
+                      {isLoadingMore ? copy.loadingMore : copy.loadMore}
+                    </button>
+                  ) : (
+                    <p className="text-sm text-slate-400">{copy.reachedEnd}</p>
+                  )}
+                  {loadMoreError ? <p className="text-sm text-rose-500">{loadMoreError}</p> : null}
+                </div>
+              </>
+            )}
+          </section>
         </section>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

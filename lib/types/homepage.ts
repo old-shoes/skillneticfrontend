@@ -47,10 +47,33 @@ export type HomepageStats = {
   beginnerTutorials: number;
 };
 
+export type HomepageSceneCount = {
+  slug: string;
+  count: number;
+};
+
+export type HomepageActivity = {
+  user: string;
+  action: string;
+  target: string;
+  ago: string;
+};
+
+export type HomepageContributor = {
+  user: string;
+  score: number;
+  submissionCount: number;
+  favoriteCount: number;
+};
+
 export type HomepageData = {
   categories: CategoryItem[];
   featuredSkills: HomepageSkill[];
+  trendingSkills: HomepageSkill[];
   latestSkills: HomepageSkill[];
+  latestActivities: HomepageActivity[];
+  weeklyContributors: HomepageContributor[];
+  sceneCounts: HomepageSceneCount[];
   tutorials: TutorialItem[];
   stats: HomepageStats;
 };

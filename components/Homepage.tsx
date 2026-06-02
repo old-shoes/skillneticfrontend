@@ -1,559 +1,583 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import { HeroButton } from "@/components/HeroButton";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { LocalizedLink } from "@/components/LocalizedLink";
+import { SkillCard } from "@/components/SkillCard";
 import { favoriteSkill, unfavoriteSkill } from "@/lib/api/skills";
 import { trackEvent } from "@/lib/api/track";
-import { getMessages, localeNumberFormat, type Locale, withLocale } from "@/lib/i18n";
-import type { HomepageData, HomepageSkill } from "@/lib/types/homepage";
+import { localeNumberFormat, type Locale, withLocale } from "@/lib/i18n";
+import type { CategoryItem, HomepageContributor, HomepageData, HomepageSkill } from "@/lib/types/homepage";
 
 type Props = {
   data: HomepageData;
   locale: Locale;
 };
 
-const chipStyles: Record<string, string> = {
-  blue: "bg-blue-50 text-blue-700 ring-blue-100",
-  green: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  orange: "bg-orange-50 text-orange-700 ring-orange-100",
-  purple: "bg-violet-50 text-violet-700 ring-violet-100",
-  rose: "bg-rose-50 text-rose-700 ring-rose-100",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-100",
-  cyan: "bg-cyan-50 text-cyan-700 ring-cyan-100",
-  emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+type HomeCopy = {
+  heroTitleTop: string;
+  heroTitleHighlight: string;
+  heroTitleBottom: string;
+  heroDesc: string;
+  heroPlaceholder: string;
+  hotSearch: string;
+  categoriesTitle: string;
+  featuredTitle: string;
+  featuredDesc: string;
+  scenesTitle: string;
+  scenesDesc: string;
+  trendsTitle: string;
+  latestActivity: string;
+  platformStats: string;
+  weeklyRanking: string;
+  weeklyRankingEmpty: string;
+  viewMore: string;
+  allCategories: string;
+  submitCtaTitle: string;
+  submitCtaDesc: string;
+  submitNow: string;
+  favorite: string;
+  favorited: string;
+  removed: string;
+  favoriteFailed: string;
+  loginFirst: string;
+  skillUnit: string;
+  statsUsers: string;
+  statsVisits: string;
+  statsFavorites: string;
+  statsSatisfaction: string;
+  trendHot: string;
+  trendViews: string;
+  uploaded: string;
+  liked: string;
+  commented: string;
+  favoritedAction: string;
+};
+
+type SceneCard = {
+  slug: string;
+  title: string;
+  desc: string;
+  icon: string;
+};
+
+type ActivityItem = {
+  user: string;
+  action: string;
+  target: string;
+  ago: string;
+};
+
+type LeaderItem = {
+  name: string;
+  score: number;
+  submissionCount: number;
+  favoriteCount: number;
+};
+
+const copyByLocale: Record<Locale, HomeCopy> = {
+  zh: {
+    heroTitleTop: "发现、学习和分享",
+    heroTitleHighlight: "AI 技能",
+    heroTitleBottom: "，让想法变为现实",
+    heroDesc: "探索 10,000+ 实用 AI 技能，提升效率，解决问题，创造无限可能",
+    heroPlaceholder: "搜索 Skill、场景、工具...",
+    hotSearch: "热门搜索：",
+    categoriesTitle: "分类导航",
+    featuredTitle: "推荐 Skill",
+    featuredDesc: "精选优质技能，助你快速成长",
+    scenesTitle: "热门场景",
+    scenesDesc: "选择场景，找到最适合你的技能组合",
+    trendsTitle: "热门趋势",
+    latestActivity: "最新动态",
+    platformStats: "平台数据",
+    weeklyRanking: "本周贡献榜",
+    weeklyRankingEmpty: "本周暂无数据",
+    viewMore: "查看更多",
+    allCategories: "更多分类",
+    submitCtaTitle: "成为创作者，分享你的知识与经验",
+    submitCtaDesc: "帮助他人，获得认可，提升影响力",
+    submitNow: "立即提交 Skill",
+    favorite: "收藏",
+    favorited: "已收藏",
+    removed: "已取消收藏",
+    favoriteFailed: "收藏失败，请稍后重试",
+    loginFirst: "请先登录",
+    skillUnit: "个 Skill",
+    statsUsers: "活跃用户",
+    statsVisits: "本月访问",
+    statsFavorites: "技能总数",
+    statsSatisfaction: "用户满意度",
+    trendHot: "热门趋势",
+    trendViews: "浏览",
+    uploaded: "提交了新的Skill",
+    liked: "点赞了 Skill",
+    commented: "评论了 Skill",
+    favoritedAction: "收藏了 Skill",
+  },
+  en: {
+    heroTitleTop: "Discover, Learn and Share",
+    heroTitleHighlight: "AI Skills",
+    heroTitleBottom: " and turn ideas into reality",
+    heroDesc: "Explore 10,000+ practical AI skills to boost productivity, solve problems and unlock more possibilities.",
+    heroPlaceholder: "Search skills, scenarios, tools...",
+    hotSearch: "Hot searches:",
+    categoriesTitle: "Categories",
+    featuredTitle: "Recommended Skills",
+    featuredDesc: "Curated high-quality skills to help you level up fast",
+    scenesTitle: "Popular Scenes",
+    scenesDesc: "Pick a scene and find the best-fit skill bundle",
+    trendsTitle: "Trending",
+    latestActivity: "Latest Activity",
+    platformStats: "Platform Stats",
+    weeklyRanking: "Weekly Ranking",
+    weeklyRankingEmpty: "No data this week",
+    viewMore: "View more",
+    allCategories: "More categories",
+    submitCtaTitle: "Become a creator and share your knowledge",
+    submitCtaDesc: "Help others, earn recognition and build influence",
+    submitNow: "Submit Skill",
+    favorite: "Favorite",
+    favorited: "Favorited",
+    removed: "Removed",
+    favoriteFailed: "Favorite failed, please try again",
+    loginFirst: "Please log in first",
+    skillUnit: "Skills",
+    statsUsers: "Active users",
+    statsVisits: "Monthly visits",
+    statsFavorites: "Total skills",
+    statsSatisfaction: "Satisfaction",
+    trendHot: "Trending",
+    trendViews: "views",
+    uploaded: "submitted a new skill",
+    liked: "liked a skill",
+    commented: "commented on a skill",
+    favoritedAction: "favorited a skill",
+  },
+};
+
+const hotSearches: Record<Locale, string[]> = {
+  zh: ["ChatGPT", "Midjourney", "Python", "自动化", "数据分析", "PPT"],
+  en: ["ChatGPT", "Midjourney", "Python", "Automation", "Data", "PPT"],
+};
+
+const heroBadges: Record<Locale, Array<{ label: string; icon: string; className: string }>> = {
+  zh: [
+    { label: "学习新技能", icon: "/v2home/skillnetic_homepage_icons_svg/hero_learning.svg", className: "left-0 top-28" },
+    { label: "解决实际问题", icon: "/v2home/skillnetic_homepage_icons_svg/solve_problem.svg", className: "right-0 top-4" },
+    { label: "提升工作效率", icon: "/v2home/skillnetic_homepage_icons_svg/general_like.svg", className: "right-4 bottom-12" },
+  ],
+  en: [
+    { label: "Learn new skills", icon: "/v2home/skillnetic_homepage_icons_svg/hero_learning.svg", className: "left-0 top-28" },
+    { label: "Solve real problems", icon: "/v2home/skillnetic_homepage_icons_svg/solve_problem.svg", className: "right-0 top-4" },
+    { label: "Boost productivity", icon: "/v2home/skillnetic_homepage_icons_svg/general_like.svg", className: "right-4 bottom-12" },
+  ],
+};
+
+const sceneCardsByLocale: Record<Locale, SceneCard[]> = {
+  zh: [
+    { slug: "office", title: "职场办公", desc: "提升效率，自动化处理日常任务", icon: "/v2home/skillnetic_homepage_icons_svg/scene_office.svg" },
+    { slug: "content", title: "内容创作", desc: "写文章、做视频、做设计", icon: "/v2home/skillnetic_homepage_icons_svg/scene_content.svg" },
+    { slug: "data", title: "数据分析", desc: "数据处理、分析与可视化", icon: "/v2home/skillnetic_homepage_icons_svg/scene_analysis.svg" },
+    { slug: "learning", title: "学习研究", desc: "文献阅读、知识整理", icon: "/v2home/skillnetic_homepage_icons_svg/scene_study.svg" },
+    { slug: "ecommerce", title: "电商运营", desc: "选品、文案、数据分析", icon: "/v2home/skillnetic_homepage_icons_svg/scene_ecommerce.svg" },
+    { slug: "programming", title: "编程开发", desc: "代码编写、调试与部署", icon: "/v2home/skillnetic_homepage_icons_svg/scene_dev.svg" },
+  ],
+  en: [
+    { slug: "office", title: "Office Work", desc: "Automate repetitive daily work", icon: "/v2home/skillnetic_homepage_icons_svg/scene_office.svg" },
+    { slug: "content", title: "Content", desc: "Write, edit, design and publish", icon: "/v2home/skillnetic_homepage_icons_svg/scene_content.svg" },
+    { slug: "data", title: "Data Analysis", desc: "Process, analyze and visualize data", icon: "/v2home/skillnetic_homepage_icons_svg/scene_analysis.svg" },
+    { slug: "learning", title: "Study", desc: "Read, summarize and research faster", icon: "/v2home/skillnetic_homepage_icons_svg/scene_study.svg" },
+    { slug: "ecommerce", title: "E-commerce", desc: "Optimize selection, copy and ops", icon: "/v2home/skillnetic_homepage_icons_svg/scene_ecommerce.svg" },
+    { slug: "programming", title: "Development", desc: "Code, test and ship with speed", icon: "/v2home/skillnetic_homepage_icons_svg/scene_dev.svg" },
+  ],
 };
 
 const categoryIconMap: Record<string, string> = {
-  writing: "/icons/category-writing.svg",
-  coding: "/icons/category-coding.svg",
-  office: "/icons/category-office.svg",
-  design: "/icons/category-design.svg",
-  marketing: "/icons/category-marketing.svg",
-  learning: "/icons/category-learning.svg",
-  video: "/icons/category-video.svg",
-  automation: "/icons/category-automation.svg",
+  writing: "/v2home/skillnetic_homepage_icons_svg/cat_write.svg",
+  coding: "/v2home/skillnetic_homepage_icons_svg/cat_code.svg",
+  office: "/v2home/skillnetic_homepage_icons_svg/cat_productivity.svg",
+  design: "/v2home/skillnetic_homepage_icons_svg/cat_design.svg",
+  marketing: "/v2home/skillnetic_homepage_icons_svg/cat_write.svg",
+  learning: "/v2home/skillnetic_homepage_icons_svg/scene_read.svg",
+  video: "/v2home/skillnetic_homepage_icons_svg/cat_video.svg",
+  automation: "/v2home/skillnetic_homepage_icons_svg/cat_automation.svg",
+  "design-visual": "/v2home/skillnetic_homepage_icons_svg/cat_design.svg",
+  "writing-content": "/v2home/skillnetic_homepage_icons_svg/cat_write.svg",
+  engineering: "/v2home/skillnetic_homepage_icons_svg/cat_code.svg",
+  "operations-growth": "/v2home/skillnetic_homepage_icons_svg/cat_productivity.svg",
+  "data-business-analysis": "/v2home/skillnetic_homepage_icons_svg/cat_data.svg",
+  "marketing-brand": "/v2home/skillnetic_homepage_icons_svg/cat_write.svg",
+  "product-project": "/v2home/skillnetic_homepage_icons_svg/cat_productivity.svg",
 };
 
-const skillIconMap: Record<string, string> = {
-  document: "/icons/document.svg",
-  group: "/icons/group.svg",
-  resume: "/icons/resume.svg",
-  chart: "/icons/chart.svg",
-  cube: "/icons/cube.svg",
-  email: "/icons/email.svg",
-  play: "/icons/play.svg",
-  "code-block": "/icons/code-block.svg",
-  calendar: "/icons/calendar.svg",
-};
+function iconForCategory(category: CategoryItem): string {
+  return categoryIconMap[category.slug] || "/v2home/skillnetic_homepage_icons_svg/cat_more.svg";
+}
 
-const statIconMap: Record<string, string> = {
-  favorites: "/icons/bookmark.svg",
-  templates: "/icons/cube.svg",
-  visits: "/icons/users.svg",
-};
+function buildRanking(contributors: HomepageContributor[]): LeaderItem[] {
+  return contributors.map((item) => ({
+    name: item.user,
+    score: item.score,
+    submissionCount: item.submissionCount,
+    favoriteCount: item.favoriteCount,
+  }));
+}
 
-function SectionTitle({
+function TopTrendCard({ skills, copy }: { skills?: HomepageSkill[]; copy: HomeCopy }) {
+  const items = skills ?? [];
+  return (
+    <section>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[18px] font-semibold text-[#1b2140]">
+          <img src="/v2home/skillnetic_homepage_icons_svg/trend_fire.svg" alt="" className="h-6 w-6" />
+          <span>{copy.trendsTitle}</span>
+        </div>
+        <LocalizedLink href="/skills" className="text-sm font-medium text-[#9398B3] hover:text-[#5B5CEB]">
+          {copy.viewMore} <span className="ml-1">›</span>
+        </LocalizedLink>
+      </div>
+      <div className="mt-4 space-y-4">
+        {items.slice(0, 5).map((skill, index) => (
+          <div key={skill.id} className="flex items-center gap-3">
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-[9px] text-[13px] font-semibold text-white ${
+                index === 0 ? "bg-[#FDB64B]" : index === 1 ? "bg-[#FF6C67]" : index === 2 ? "bg-[#7285FF]" : "bg-[#E4E7F2] text-[#7E839C]"
+              }`}
+            >
+              {index + 1}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-medium text-[#232948]">{skill.title}</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-[13px] text-[#7F86A4]">
+              <img src="/v2home/skillnetic_homepage_icons_svg/trend_views.svg" alt="" className="h-4 w-4" />
+              <span>{skill.viewCount >= 1000 ? `${(skill.viewCount / 1000).toFixed(1)}k` : String(skill.viewCount || skill.favoriteCount)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HeroVisual({ locale }: { locale: Locale }) {
+  const badges = heroBadges[locale];
+  return (
+    <div className="relative mx-auto flex min-h-[308px] w-full max-w-[620px] items-center justify-center">
+      {badges.map((badge) => (
+        <div key={badge.label} className={`absolute ${badge.className} rounded-[16px] bg-white/94 px-4 py-3 shadow-[0_14px_38px_rgba(86,106,214,0.12)] ring-1 ring-white/85`}>
+          <div className="flex items-center gap-2.5 text-[14px] font-semibold text-[#21274A]">
+            <img src={badge.icon} alt="" className="h-6 w-6" />
+            <span>{badge.label}</span>
+          </div>
+        </div>
+      ))}
+
+      <div className="relative h-[300px] w-[450px]">
+        <div className="absolute left-1/2 top-[26px] h-3 w-3 -translate-x-1/2 rounded-full bg-[#C6D0FF]" />
+        <div className="absolute left-[82px] top-[54px] h-3.5 w-3.5 rounded-full bg-[#D9E2FF]" />
+        <div className="absolute right-[84px] top-[46px] h-3.5 w-3.5 rounded-full bg-[#D9E2FF]" />
+        <div className="absolute left-[84px] top-[74px] right-[84px] h-[1px] bg-gradient-to-r from-transparent via-[#D7DEFF] to-transparent" />
+
+        <div className="absolute left-[126px] top-[62px] rounded-[12px] bg-white/88 p-3 shadow-[0_14px_34px_rgba(114,133,255,0.16)]">
+          <img src="/v2home/skillnetic_homepage_icons_svg/hero_code.svg" alt="" className="h-7 w-7" />
+        </div>
+        <div className="absolute left-[204px] top-[8px] rounded-[12px] bg-white/88 p-3 shadow-[0_14px_34px_rgba(114,133,255,0.16)]">
+          <img src="/v2home/skillnetic_homepage_icons_svg/hero_chart.svg" alt="" className="h-7 w-7" />
+        </div>
+        <div className="absolute right-[106px] top-[102px] rounded-[12px] bg-white/88 p-3 shadow-[0_14px_34px_rgba(114,133,255,0.16)]">
+          <img src="/v2home/skillnetic_homepage_icons_svg/hero_play.svg" alt="" className="h-7 w-7" />
+        </div>
+        <div className="absolute left-[126px] top-[188px] rounded-[12px] bg-white/88 p-3 shadow-[0_14px_34px_rgba(114,133,255,0.16)]">
+          <img src="/v2home/skillnetic_homepage_icons_svg/hero_robot.svg" alt="" className="h-7 w-7" />
+        </div>
+        <div className="absolute right-[120px] top-[194px] rounded-[12px] bg-white/88 p-3 shadow-[0_14px_34px_rgba(114,133,255,0.16)]">
+          <img src="/v2home/skillnetic_homepage_icons_svg/hero_image.svg" alt="" className="h-7 w-7" />
+        </div>
+
+        <div className="absolute inset-x-[52px] bottom-[16px] h-[92px] rounded-[999px] bg-[radial-gradient(circle_at_center,rgba(129,151,255,0.18),rgba(129,151,255,0.04)_60%,transparent_75%)]" />
+
+        <div className="absolute left-1/2 top-[76px] h-[206px] w-[206px] -translate-x-1/2 rounded-[50%] border border-[#E1E7FF] opacity-70" />
+        <div className="absolute left-1/2 top-[98px] h-[154px] w-[304px] -translate-x-1/2 rounded-[50%] border border-[#E6EBFF] opacity-70" />
+
+        <div className="absolute bottom-[26px] left-1/2 h-[82px] w-[316px] -translate-x-1/2 rounded-[34px] bg-gradient-to-b from-[#EDF2FF] to-[#DDE7FF] shadow-[0_20px_48px_rgba(108,124,228,0.14)]" />
+        <div className="absolute bottom-[44px] left-1/2 h-[56px] w-[228px] -translate-x-1/2 rounded-[22px] bg-gradient-to-b from-[#DFE7FF] to-[#C3D2FF]" />
+
+        <div className="absolute bottom-[66px] left-1/2 h-[166px] w-[166px] -translate-x-1/2 rounded-[20px] bg-[linear-gradient(180deg,#6D65FF_0%,#7E76FF_48%,#64E4F1_100%)] shadow-[0_26px_58px_rgba(98,109,255,0.35)]">
+          <div className="absolute inset-[11px] rounded-[14px] border border-white/35" />
+          <div className="absolute inset-x-0 top-[34px] text-center text-[72px] font-semibold tracking-tight text-white/95 drop-shadow-[0_8px_16px_rgba(38,51,180,0.32)]">
+            AI
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HomeHero({
+  locale,
+}: {
+  locale: Locale;
+}) {
+  const copy = copyByLocale[locale];
+  const pageUrl = withLocale(locale, "/");
+
+  return (
+    <section>
+      <div className="grid gap-4 xl:grid-cols-[1.06fr_0.94fr] xl:items-start">
+        <div className="pt-2">
+          <h1 className="text-[44px] font-semibold leading-[1.15] tracking-[-0.045em] text-[#12193A]">
+            <span className="block">{copy.heroTitleTop}</span>
+            <span className="mt-1.5 block">
+              <span className="bg-[linear-gradient(180deg,#796BFF_0%,#4D47FF_100%)] bg-clip-text text-transparent">
+                {copy.heroTitleHighlight}
+              </span>
+              <span>{copy.heroTitleBottom}</span>
+            </span>
+          </h1>
+          <p className="mt-4 max-w-[620px] text-[15px] leading-7 text-[#5E678B]">{copy.heroDesc}</p>
+
+          <form
+            action={withLocale(locale, "/skills")}
+            method="get"
+            className="mt-5"
+            onSubmit={(event) => {
+              const keyword = String(new FormData(event.currentTarget).get("q") || "").trim();
+              trackEvent({
+                eventName: "home_search_submit",
+                pageUrl,
+                targetType: "search",
+                targetId: null,
+                extra: { keyword },
+              });
+            }}
+          >
+            <div className="flex h-[58px] max-w-[652px] items-center rounded-[18px] bg-white/94 pl-6 pr-2.5 shadow-[0_12px_32px_rgba(91,109,196,0.08)] ring-1 ring-white/90">
+              <input
+                name="q"
+                placeholder={copy.heroPlaceholder}
+                className="h-full flex-1 border-0 bg-transparent text-[15px] text-[#3B4262] outline-none placeholder:text-[#A5ACC5]"
+              />
+              <button
+                type="submit"
+                className="flex h-[46px] w-[52px] items-center justify-center rounded-[14px] bg-[linear-gradient(180deg,#5F63FF_0%,#4B3DFF_100%)] shadow-[0_14px_30px_rgba(79,74,255,0.34)]"
+              >
+                <img src="/v2home/skillnetic_homepage_icons_svg/search_icon.svg" alt="" className="h-6 w-6" />
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-[14px] font-medium text-[#6D7392]">{copy.hotSearch}</span>
+            {hotSearches[locale].map((item) => (
+              <LocalizedLink
+                key={item}
+                href={`/skills?q=${encodeURIComponent(item)}`}
+                className="rounded-full bg-[linear-gradient(180deg,#F4F1FF_0%,#EEF2FF_100%)] px-4 py-2 text-[14px] font-medium text-[#6668F4] shadow-[0_4px_14px_rgba(129,121,255,0.08)]"
+              >
+                {item}
+              </LocalizedLink>
+            ))}
+          </div>
+        </div>
+
+        <HeroVisual locale={locale} />
+      </div>
+    </section>
+  );
+}
+
+function CategoryStrip({ locale, categories }: { locale: Locale; categories: CategoryItem[] }) {
+  const copy = copyByLocale[locale];
+  const visible = categories.slice(0, 7);
+  const cardColors = [
+    "from-[#F2ECFF] to-[#FBFAFF]",
+    "from-[#E9F1FF] to-[#F9FBFF]",
+    "from-[#E9FFF2] to-[#FBFFFD]",
+    "from-[#FFF0EE] to-[#FFF9F8]",
+    "from-[#ECFAFF] to-[#FAFDFF]",
+    "from-[#F0EBFF] to-[#FBFAFF]",
+    "from-[#FFF3E5] to-[#FFFDFC]",
+  ];
+
+  return (
+    <div className="grid gap-0 rounded-[22px] bg-white/92 shadow-[0_16px_48px_rgba(102,118,197,0.06)] ring-1 ring-white/90 xl:grid-cols-8">
+      {visible.map((category, index) => (
+        <LocalizedLink
+          key={category.id}
+          href={`/skills?category=${encodeURIComponent(category.slug)}`}
+          className="flex min-h-[92px] flex-col justify-between border-r border-[#EEF1FA] bg-[linear-gradient(180deg,var(--tw-gradient-stops))] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] last:border-r-0"
+          style={{ backgroundImage: `linear-gradient(180deg, ${cardColors[index % cardColors.length].replace("from-[", "").replace("] to-[", ", ").replace("]", "")})` }}
+        >
+          <div className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white shadow-[0_8px_20px_rgba(100,115,200,0.14)]">
+            <img src={iconForCategory(category)} alt={category.name} className="h-7 w-7" />
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold text-[#1A2341]">{category.name}</p>
+            <p className="mt-1 text-[11px] text-[#727999]">
+              {category.skillCount.toLocaleString(localeNumberFormat[locale])} {copy.skillUnit}
+            </p>
+          </div>
+        </LocalizedLink>
+      ))}
+      <LocalizedLink
+      href="/skills"
+        className="flex min-h-[84px] flex-col justify-between bg-[linear-gradient(180deg,#F7F8FF_0%,#FCFCFF_100%)] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
+      >
+        <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white shadow-[0_8px_20px_rgba(100,115,200,0.14)]">
+          <img src="/v2home/skillnetic_homepage_icons_svg/cat_more.svg" alt="" className="h-6 w-6" />
+        </div>
+        <div>
+          <p className="text-[13px] font-semibold text-[#1A2341]">{copy.allCategories}</p>
+          <p className="mt-0.5 text-[11px] text-[#727999]">{copy.viewMore}</p>
+        </div>
+      </LocalizedLink>
+    </div>
+  );
+}
+
+function LatestActivityCard({ locale, items }: { locale: Locale; items: ActivityItem[] }) {
+  const copy = copyByLocale[locale];
+  return (
+    <section>
+      <div className="flex items-center justify-between">
+        <h3 className="text-[17px] font-semibold text-[#171E3D]">{copy.latestActivity}</h3>
+      </div>
+      <div className="mt-4 space-y-4">
+        {items.map((item, index) => (
+          <div key={`${item.user}-${index}`} className="flex items-start gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(180deg,#EEF2FF_0%,#FFFFFF_100%)] text-[12px] font-semibold text-[#5965F6] shadow-[0_8px_18px_rgba(92,101,235,0.14)]">
+              {item.user.slice(0, 2)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] leading-5.5 text-[#222948]">
+                <span className="font-semibold">{item.user}</span>
+                <span className="mx-1 text-[#646D8D]">{item.action}</span>
+              </p>
+              <p className="mt-0.5 truncate text-[13px] text-[#5E678B]">{item.target}</p>
+            </div>
+            <span className="shrink-0 pt-0.5 text-[12px] text-[#959CB8]">{item.ago}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SectionHeader({
   title,
-  actionLabel,
-  actionHref,
+  desc,
+  href,
+  locale,
 }: {
   title: string;
-  actionLabel?: string;
-  actionHref?: string;
+  desc?: string;
+  href?: string;
+  locale: Locale;
 }) {
+  const copy = copyByLocale[locale];
   return (
-    <div className="mb-5 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-3 text-[22px] font-semibold text-slate-900">
-        <span className="h-6 w-1 rounded-full bg-brand-500" />
-        {title}
-      </h2>
-      {actionLabel && actionHref ? (
-        <LocalizedLink href={actionHref} className="text-sm font-medium text-slate-500 hover:text-brand-600">
-          <span className="inline-flex items-center gap-1.5">
-            {actionLabel}
-            <BoxIcon src="/icons/arrow-right.svg" alt="" size={10} boxClassName="h-4 w-4" />
-          </span>
+    <div className="mb-4 flex items-end justify-between gap-4">
+      <div className="flex items-end gap-3">
+        <h2 className="text-[25px] font-semibold tracking-[-0.03em] text-[#171E3D]">{title}</h2>
+        {desc ? <p className="pb-0.5 text-[14px] text-[#868DA9]">{desc}</p> : null}
+      </div>
+      {href ? (
+        <LocalizedLink href={href} className="pb-1 text-[14px] font-medium text-[#7A80A0] hover:text-[#5B5CEB]">
+          {copy.viewMore} <span className="ml-1">›</span>
         </LocalizedLink>
       ) : null}
     </div>
   );
 }
 
-function HeroIcon({ label }: { label: string }) {
+type HomeSkillClickEventName = "home_featured_skill_click" | "home_latest_skill_click";
+
+function WeeklyRankingCard({ locale, contributors }: { locale: Locale; contributors: HomepageContributor[] }) {
+  const copy = copyByLocale[locale];
+  const ranking = useMemo(() => buildRanking(contributors), [contributors]);
   return (
-    <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-white/95 text-sm font-semibold text-brand-600 shadow-sm ring-1 ring-white/80">
-      {label}
-    </span>
-  );
-}
-
-function CategoryIcon({
-  slug,
-  name,
-  size,
-}: {
-  slug: string;
-  name: string;
-  size: number;
-}) {
-  const src = categoryIconMap[slug];
-
-  if (!src) {
-    return <HeroIcon label={name.slice(0, 1)} />;
-  }
-
-  return <Image src={src} alt={name} width={size} height={size} className="h-auto w-auto" />;
-}
-
-function AssetIcon({
-  src,
-  alt,
-  size,
-}: {
-  src: string;
-  alt: string;
-  size: number;
-}) {
-  return <Image src={src} alt={alt} width={size} height={size} className="h-auto w-auto" />;
-}
-
-function BoxIcon({
-  src,
-  alt,
-  boxClassName,
-  size,
-}: {
-  src: string;
-  alt: string;
-  boxClassName: string;
-  size: number;
-}) {
-  return (
-    <span className={`inline-flex items-center justify-center ${boxClassName}`}>
-      <AssetIcon src={src} alt={alt} size={size} />
-    </span>
-  );
-}
-
-function Tag({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-      {children}
-    </span>
-  );
-}
-
-function trackCategoryClick(locale: Locale, category: HomepageData["categories"][number]) {
-  trackEvent({
-    eventName: "home_category_click",
-    pageUrl: withLocale(locale, "/"),
-    targetType: "category",
-    targetId: category.id,
-    extra: {
-      slug: category.slug,
-      name: category.name,
-    },
-  });
-}
-
-function CategoryCard({
-  category,
-  locale,
-  numberFormat,
-}: {
-  category: HomepageData["categories"][number];
-  locale: Locale;
-  numberFormat: string;
-}) {
-  return (
-    <LocalizedLink
-      href={`/categories/${category.slug}`}
-      onClick={() => trackCategoryClick(locale, category)}
-      className="group rounded-[22px] border border-white/70 bg-white/90 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(37,99,235,0.12)]"
-    >
-      <div className="flex items-start gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${chipStyles[category.color] ?? chipStyles.blue}`}>
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-white/95 shadow-sm ring-1 ring-white/80">
-            <CategoryIcon slug={category.slug} name={category.name} size={26} />
-          </span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-semibold text-slate-900">{category.name}</h3>
-          <p className="mt-1 line-clamp-none text-sm leading-6 text-slate-500">{category.description}</p>
-        </div>
+    <section>
+      <div className="flex items-center justify-between">
+        <h3 className="text-[18px] font-semibold text-[#171E3D]">{copy.weeklyRanking}</h3>
       </div>
-      <p className="mt-5 text-sm text-slate-500">
-        {locale === "en"
-          ? `${category.skillCount.toLocaleString(numberFormat)}+ Skills`
-          : `${category.skillCount.toLocaleString(numberFormat)}+ Skill`}
-      </p>
-    </LocalizedLink>
-  );
-}
-
-function formatFavoriteCount(locale: Locale, value: number) {
-  if (value / 1000 >= 1) {
-    return `${(value / 1000).toFixed(1)}k`;
-  }
-
-  return value.toLocaleString(localeNumberFormat[locale]);
-}
-
-function SkillCard({
-  skill,
-  locale,
-  hotLabel,
-  favoriteLabel,
-  detailsLabel,
-  onFavoriteToggle,
-}: {
-  skill: HomepageSkill;
-  locale: Locale;
-  hotLabel: string;
-  favoriteLabel: string;
-  detailsLabel: string;
-  onFavoriteToggle: (skill: HomepageSkill) => Promise<void>;
-}) {
-  const iconSrc = skill.coverIcon ? skillIconMap[skill.coverIcon] : undefined;
-
-  return (
-    <article className="rounded-[22px] border border-white/70 bg-white/95 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-      <div className="mb-4 flex items-start gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100">
-          {iconSrc ? (
-            <BoxIcon src={iconSrc} alt={skill.title} size={28} boxClassName="h-11 w-11 rounded-2xl bg-white/90 shadow-sm ring-1 ring-white/80" />
-          ) : (
-            <HeroIcon label={skill.title.slice(0, 1)} />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex items-center gap-2">
-            {skill.isHot ? <Tag>{hotLabel}</Tag> : null}
-            <h3 className="truncate text-lg font-semibold text-slate-900">{skill.title}</h3>
-          </div>
-          <p className="text-sm leading-6 text-slate-500">{skill.summary}</p>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {skill.tags.map((tag) => (
-          <Tag key={tag.id}>{tag.name}</Tag>
-        ))}
-      </div>
-
-      <div className="mt-5 flex items-center justify-between gap-3 text-sm text-slate-500">
-        <span>
-          {locale === "en"
-            ? `${formatFavoriteCount(locale, skill.favoriteCount)} ${favoriteLabel.toLowerCase()}`
-            : `${favoriteLabel} ${formatFavoriteCount(locale, skill.favoriteCount)}`}
-        </span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => void onFavoriteToggle(skill)}
-            className={`rounded-xl border px-3 py-2 font-medium transition ${
-              skill.isFavorited
-                ? "border-brand-200 text-brand-600"
-                : "border-slate-200 text-slate-700 hover:border-brand-200 hover:text-brand-600"
-            }`}
-          >
-            {skill.isFavorited ? (locale === "en" ? "Favorited" : "已收藏") : favoriteLabel}
-          </button>
-          <LocalizedLink
-            href={`/skills/${skill.slug}`}
-            onClick={() =>
-              trackEvent({
-                eventName: "home_featured_skill_click",
-                pageUrl: withLocale(locale, "/"),
-                targetType: "skill",
-                targetId: skill.id,
-                extra: {
-                  slug: skill.slug,
-                  title: skill.title,
-                },
-              })
-            }
-            className="rounded-xl bg-brand-500 px-3 py-2 font-medium !text-white transition hover:bg-brand-600"
-          >
-            {detailsLabel}
-          </LocalizedLink>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function LatestSkillCard({ skill, locale }: { skill: HomepageSkill; locale: Locale }) {
-  const iconSrc = skill.coverIcon ? skillIconMap[skill.coverIcon] : undefined;
-
-  return (
-    <LocalizedLink
-      href={`/skills/${skill.slug}`}
-      onClick={() =>
-        trackEvent({
-          eventName: "home_latest_skill_click",
-          pageUrl: withLocale(locale, "/"),
-          targetType: "skill",
-          targetId: skill.id,
-          extra: {
-            slug: skill.slug,
-            title: skill.title,
-          },
-        })
-      }
-      className="rounded-[18px] border border-white/75 bg-white/90 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(37,99,235,0.12)]"
-    >
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-          {iconSrc ? <BoxIcon src={iconSrc} alt={skill.title} size={18} boxClassName="h-8 w-8 rounded-lg bg-white/90 shadow-sm ring-1 ring-white/80" /> : <HeroIcon label={skill.title.slice(0, 1)} />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="truncate text-sm font-semibold text-slate-900">{skill.title}</h3>
-            <span className="inline-flex shrink-0 items-center gap-1 text-xs text-amber-500">
-              <BoxIcon src="/icons/star.svg" alt="" size={10} boxClassName="h-3.5 w-3.5" />
-              {skill.favoriteCount / 1000 >= 1 ? `${(skill.favoriteCount / 1000).toFixed(1)}k` : skill.favoriteCount}
-            </span>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {skill.tags.slice(0, 2).map((tag) => (
-              <span key={tag.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-                {tag.name}
-              </span>
-            ))}
-          </div>
-          <p className="mt-2 text-xs leading-5 text-slate-500">{skill.summary}</p>
-        </div>
-      </div>
-    </LocalizedLink>
-  );
-}
-
-function StatsCard({
-  value,
-  label,
-  description,
-  tone,
-  iconSrc,
-}: {
-  value: string;
-  label: string;
-  description: string;
-  tone: string;
-  iconSrc: string;
-  }) {
-  return (
-    <div className="flex items-center gap-4 rounded-[22px] border border-white/70 bg-white/90 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tone}`}>
-        <BoxIcon src={iconSrc} alt={label} size={18} boxClassName="h-8 w-8 rounded-lg bg-white/90 shadow-sm ring-1 ring-white/80" />
-      </div>
-      <div>
-        <p className="text-2xl font-semibold text-slate-900">{value}</p>
-        <p className="mt-1 text-sm font-medium text-slate-700">{label}</p>
-        <p className="mt-1 text-xs text-slate-500">{description}</p>
-      </div>
-    </div>
-  );
-}
-
-function formatStatValue(locale: Locale, value: number): string {
-  return `${value.toLocaleString(localeNumberFormat[locale])}+`;
-}
-
-function HeroIllustration() {
-  return (
-    <div className="relative mx-auto w-full max-w-[540px]">
-      <div className="absolute -left-10 top-8 rounded-2xl bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-brand-500/30">
-        <AssetIcon src="/icons/prompt-bubble.svg" alt="Prompt" size={68} />
-      </div>
-      <div className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 shadow-sm ring-1 ring-white/70">
-        <AssetIcon src="/icons/robot.svg" alt="" size={24} />
-      </div>
-      <div className="absolute -right-4 bottom-10 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 shadow-sm ring-1 ring-brand-100">
-        <AssetIcon src="/icons/code-block.svg" alt="" size={32} />
-      </div>
-      <div className="absolute -left-8 bottom-12 flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-[0_16px_40px_rgba(15,23,42,0.1)] ring-1 ring-white/80">
-        <AssetIcon src="/icons/robot.svg" alt="" size={38} />
-      </div>
-      <div className="relative rounded-[34px] border border-white/80 bg-white/90 p-4 shadow-[0_30px_90px_rgba(37,99,235,0.16)] backdrop-blur">
-        <div className="rounded-[28px] border border-slate-100 bg-gradient-to-br from-white to-slate-50 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Image
-                src="/icons/skillnetic_app_icon_card.png"
-                alt="skillnetic.ai"
-                width={285}
-                height={295}
-                className="h-6 w-6 rounded-lg"
-              />
-              <span className="text-sm font-semibold text-slate-900">skillnetic.ai</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-brand-200" />
-              <span className="h-2.5 w-2.5 rounded-full bg-brand-300" />
-              <span className="h-2.5 w-2.5 rounded-full bg-brand-500" />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
-            <div className="h-3 w-24 rounded-full bg-slate-100" />
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              <div className="rounded-2xl bg-blue-50 p-3">
-                <div className="h-3 w-14 rounded-full bg-blue-200" />
-                <div className="mt-3 h-12 rounded-xl bg-gradient-to-br from-blue-200 to-blue-100" />
+      {ranking.length ? (
+        <div className="mt-5 space-y-4">
+          {ranking.map((item, index) => (
+            <div key={item.name} className="flex items-center gap-3">
+              <div className="w-4 text-[22px] font-semibold text-[#F18E2B]">{index + 1}</div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(180deg,#EEF2FF_0%,#FFFFFF_100%)] text-[12px] font-semibold text-[#5965F6] shadow-[0_8px_18px_rgba(92,101,235,0.14)]">
+                {item.name.slice(0, 2)}
               </div>
-              <div className="rounded-2xl bg-slate-50 p-3">
-                <div className="h-3 w-14 rounded-full bg-slate-200" />
-                <div className="mt-3 h-12 rounded-xl bg-slate-200/70" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] text-[#242B49]">{item.name}</p>
+                <p className="mt-0.5 text-[12px] text-[#8B91AD]">
+                  {locale === "en"
+                    ? `${item.submissionCount} submissions · ${item.favoriteCount} favorites`
+                    : `${item.submissionCount} 次提交 · ${item.favoriteCount} 次收藏`}
+                </p>
               </div>
-              <div className="rounded-2xl bg-cyan-50 p-3">
-                <div className="h-3 w-14 rounded-full bg-cyan-200" />
-                <div className="mt-3 h-12 rounded-xl bg-gradient-to-br from-cyan-200 to-cyan-100" />
+              <div className="flex items-center gap-1.5 text-[14px] font-medium text-[#F18E2B]">
+                <img src="/v2home/skillnetic_homepage_icons_svg/trend_fire.svg" alt="" className="h-4.5 w-4.5" />
+                <span>{item.score}</span>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-brand-50 p-3">
-                <div className="h-20 rounded-xl bg-white shadow-sm" />
-              </div>
-              <div className="rounded-2xl bg-indigo-50 p-3">
-                <div className="flex h-20 items-end gap-2 rounded-xl bg-white px-3 py-3 shadow-sm">
-                  <span className="h-8 w-3 rounded-full bg-brand-300" />
-                  <span className="h-12 w-3 rounded-full bg-brand-400" />
-                  <span className="h-16 w-3 rounded-full bg-brand-500" />
-                  <span className="h-10 w-3 rounded-full bg-brand-200" />
-                </div>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Hero({
-  categories,
-  locale,
-}: {
-  categories: HomepageData["categories"];
-  locale: Locale;
-}) {
-  const quickCategories = categories.slice(0, 6);
-  const copy = getMessages(locale).homepage;
-  const pageUrl = withLocale(locale, "/");
-  const searchAction = withLocale(locale, "/skills");
-
-  return (
-    <section className="border-b border-white/60 bg-gradient-to-br from-[#f7fbff] via-[#eef5ff] to-[#f5f9ff]">
-      <div className="mx-auto grid max-w-7xl gap-14 px-4 pb-14 pt-10 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:px-8 lg:pt-14">
-        <div className="pt-4">
-          <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-[56px] lg:leading-[1.06]">
-            {copy.hero.titlePrefix} <span className="text-brand-600">{copy.hero.titleHighlight}</span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-            {copy.hero.description}
-          </p>
-
-          <form
-            action={searchAction}
-            method="get"
-            className="mt-8 max-w-2xl"
-            onSubmit={(event) => {
-              const formData = new FormData(event.currentTarget);
-              const keyword = String(formData.get("q") || "").trim();
-
-              trackEvent({
-                eventName: "home_search_submit",
-                pageUrl,
-                targetType: "search",
-                targetId: null,
-                extra: {
-                  keyword,
-                },
-              });
-            }}
-          >
-            <div className="flex flex-col gap-3 rounded-[20px] border border-white/80 bg-white/90 p-3 shadow-soft sm:flex-row sm:items-center">
-              <label className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
-                <BoxIcon src="/icons/search.svg" alt={copy.actions.search} size={14} boxClassName="h-5 w-5" />
-                <input
-                  name="q"
-                  placeholder={copy.hero.placeholder}
-                  className="w-full border-0 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-400"
-                />
-              </label>
-              <HeroButton type="submit" className="rounded-2xl bg-brand-500 px-8 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600">
-                <span className="inline-flex items-center gap-2">
-                  {copy.actions.search}
-                  <BoxIcon src="/icons/arrow-right.svg" alt="" size={10} boxClassName="h-4 w-4" />
-                </span>
-              </HeroButton>
-            </div>
-          </form>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            {quickCategories.map((category) => (
-              <LocalizedLink
-                key={category.id}
-                href={`/categories/${category.slug}`}
-                onClick={() => trackCategoryClick(locale, category)}
-                className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-600"
-              >
-                {categoryIconMap[category.slug] ? (
-                  <BoxIcon
-                    src={categoryIconMap[category.slug]}
-                    alt={category.name}
-                    size={14}
-                    boxClassName="h-6 w-6 rounded-full bg-white shadow-sm ring-1 ring-slate-100"
-                  />
-                ) : (
-                  <HeroIcon label={category.name.slice(0, 1)} />
-                )}
-                {category.name}
-              </LocalizedLink>
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-4">
-            <LocalizedLink href="/skills" className="rounded-2xl bg-brand-500 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600">
-              <span className="inline-flex items-center gap-2">
-                {copy.actions.browseSkills}
-                <BoxIcon src="/icons/arrow-right.svg" alt="" size={11} boxClassName="h-4 w-4" />
-              </span>
-            </LocalizedLink>
-            <LocalizedLink
-              href="/submit"
-              onClick={() =>
-                trackEvent({
-                  eventName: "home_submit_skill_click",
-                  pageUrl,
-                  targetType: "button",
-                  targetId: "submit_skill",
-                  extra: {},
-                })
-              }
-              className="rounded-2xl border border-brand-200 bg-white px-6 py-3.5 text-sm font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
-            >
-              <span className="inline-flex items-center gap-2">
-                {copy.actions.submitSkill}
-                <BoxIcon src="/icons/upload.svg" alt="" size={11} boxClassName="h-4 w-4" />
-              </span>
-            </LocalizedLink>
-          </div>
+      ) : (
+        <div className="mt-5 rounded-[16px] bg-[linear-gradient(180deg,#F7F9FF_0%,#FFFFFF_100%)] px-4 py-5 text-center text-[13px] text-[#8B91AD]">
+          {copy.weeklyRankingEmpty}
         </div>
-
-        <div className="flex items-center lg:justify-end">
-          <HeroIllustration />
-        </div>
-      </div>
+      )}
     </section>
   );
 }
 
+function SceneCardView({ scene, count, locale }: { scene: SceneCard; count: number; locale: Locale }) {
+  return (
+    <div className="rounded-[20px] bg-white/94 p-4.5 shadow-[0_16px_48px_rgba(92,106,184,0.08)] ring-1 ring-white/90">
+      <div className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[linear-gradient(180deg,#F4F7FF_0%,#FFFFFF_100%)] shadow-[0_8px_20px_rgba(92,106,184,0.1)]">
+        <img src={scene.icon} alt={scene.title} className="h-7 w-7" />
+      </div>
+      <h3 className="mt-3.5 text-[16px] font-semibold text-[#171E3D]">{scene.title}</h3>
+      <p className="mt-1.5 text-[13px] leading-6 text-[#6D7493]">{scene.desc}</p>
+      <p className="mt-4 text-[14px] font-medium text-[#5A5EF5]">
+        {count.toLocaleString(localeNumberFormat[locale])} {locale === "en" ? "skills" : "个技能"}
+      </p>
+    </div>
+  );
+}
+
+function SubmitBanner({ locale }: { locale: Locale }) {
+  const copy = copyByLocale[locale];
+  return (
+    <div className="overflow-hidden rounded-[22px] bg-[linear-gradient(180deg,#E8EDFF_0%,#DCE3FF_100%)] px-7 py-5 shadow-[0_16px_48px_rgba(92,106,184,0.08)]">
+      <div className="flex flex-col items-start justify-between gap-5 lg:flex-row lg:items-center">
+        <div className="flex items-center gap-4">
+          <div className="flex h-18 w-18 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#FFFFFF,rgba(255,255,255,0.7))] shadow-[0_14px_34px_rgba(112,126,217,0.18)]">
+            <img src="/v2home/skillnetic_homepage_icons_svg/general_trophy.svg" alt="" className="h-10 w-10" />
+          </div>
+          <div>
+            <h3 className="text-[24px] font-semibold tracking-[-0.03em] text-[#2C38B5]">{copy.submitCtaTitle}</h3>
+            <p className="mt-1.5 text-[15px] text-[#6D7493]">{copy.submitCtaDesc}</p>
+          </div>
+        </div>
+        <LocalizedLink
+          href="/submit"
+          className="inline-flex h-[52px] items-center gap-3 rounded-[14px] bg-[linear-gradient(180deg,#5F63FF_0%,#4B3DFF_100%)] px-6 text-[18px] font-semibold text-white shadow-[0_16px_34px_rgba(79,74,255,0.34)]"
+        >
+          <span>{copy.submitNow}</span>
+          <span className="text-[22px]">→</span>
+        </LocalizedLink>
+      </div>
+    </div>
+  );
+}
+
 export function Homepage({ data, locale }: Props) {
-  const copy = getMessages(locale).homepage;
+  const router = useRouter();
+  const copy = copyByLocale[locale];
   const [featuredSkills, setFeaturedSkills] = useState<HomepageSkill[]>(data.featuredSkills);
   const [favoriteMessage, setFavoriteMessage] = useState("");
 
@@ -572,27 +596,13 @@ export function Homepage({ data, locale }: Props) {
   }, [data.featuredSkills]);
 
   useEffect(() => {
-    if (!favoriteMessage) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setFavoriteMessage("");
-    }, 1000);
+    if (!favoriteMessage) return;
+    const timer = window.setTimeout(() => setFavoriteMessage(""), 1200);
     return () => window.clearTimeout(timer);
   }, [favoriteMessage]);
 
   async function handleHomepageFavoriteToggle(skill: HomepageSkill) {
     try {
-      trackEvent({
-        eventName: "skills_favorite_click",
-        pageUrl: withLocale(locale, "/"),
-        targetType: "skill",
-        targetId: skill.id,
-        extra: {
-          slug: skill.slug,
-          title: skill.title,
-        },
-      });
       const result = skill.isFavorited ? await unfavoriteSkill(skill.id) : await favoriteSkill(skill.id);
       setFeaturedSkills((current) =>
         current.map((item) =>
@@ -605,95 +615,103 @@ export function Homepage({ data, locale }: Props) {
             : item,
         ),
       );
-      setFavoriteMessage(
-        result.favorited
-          ? (locale === "en" ? "Favorited" : "已收藏")
-          : (locale === "en" ? "Removed from favorites" : "已取消收藏"),
-      );
+      setFavoriteMessage(result.favorited ? copy.favorited : copy.removed);
+      router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (message.toLowerCase().includes("unauthorized")) {
-        setFavoriteMessage(locale === "en" ? "Please log in first" : "请先登录");
+        setFavoriteMessage(copy.loginFirst);
         return;
       }
-      setFavoriteMessage(locale === "en" ? "Favorite failed, please try again" : "收藏失败，请稍后重试");
+      setFavoriteMessage(copy.favoriteFailed);
     }
   }
 
+  function openSkill(skill: HomepageSkill, eventName: HomeSkillClickEventName) {
+    trackEvent({
+      eventName,
+      pageUrl: withLocale(locale, "/"),
+      targetType: "skill",
+      targetId: skill.id,
+      extra: { slug: skill.slug, title: skill.title },
+    });
+    router.push(withLocale(locale, `/skills/${skill.slug}`));
+  }
+
+  const sceneCards = sceneCardsByLocale[locale];
+  const sceneCountMap = useMemo(
+    () => new Map((data.sceneCounts ?? []).map((item) => [item.slug, item.count])),
+    [data.sceneCounts],
+  );
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(134,155,255,0.18),transparent_38%),linear-gradient(180deg,#F6F8FF_0%,#FBFCFF_100%)]">
       {favoriteMessage ? (
-        <div className="pointer-events-none fixed right-4 top-20 z-50 rounded-2xl border border-emerald-200 bg-white/96 px-4 py-3 text-sm font-medium text-emerald-700 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur sm:right-6">
+        <div className="pointer-events-none fixed right-6 top-20 z-50 rounded-[18px] bg-white/95 px-5 py-3 text-sm font-medium text-[#3A46E8] shadow-[0_18px_40px_rgba(88,98,199,0.18)] ring-1 ring-white/90">
           {favoriteMessage}
         </div>
       ) : null}
-      <Hero categories={data.categories} locale={locale} />
 
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <section>
-          <SectionTitle title={copy.sections.categories} actionLabel={copy.actions.viewAll} actionHref="/categories" />
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            {data.categories.map((category) => (
-              <CategoryCard
-                key={category.id}
-                category={category}
-                locale={locale}
-                numberFormat={localeNumberFormat[locale]}
-              />
-            ))}
+      <div className="mx-auto max-w-[1780px]">
+        <main className="px-4 pb-7 pt-5 xl:px-6">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
+            <div className="min-w-0">
+              <HomeHero locale={locale} />
+              <div className="mt-4">
+                <CategoryStrip locale={locale} categories={data.categories} />
+              </div>
+
+              <section>
+                <SectionHeader title={copy.featuredTitle} desc={copy.featuredDesc} href="/skills" locale={locale} />
+                <div className="grid gap-3 xl:grid-cols-4">
+                  {featuredSkills.slice(0, 4).map((skill) => (
+                    <SkillCard
+                      key={skill.id}
+                      skill={{
+                        ...skill,
+                        type: skill.coverIcon || "prompt",
+                      }}
+                      variant="recommended"
+                      maxTags={3}
+                      favoriteLabel={copy.favorite}
+                      onOpen={() => openSkill(skill, "home_featured_skill_click")}
+                      onFavorite={() => handleHomepageFavoriteToggle(skill)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <section className="mt-6">
+                <SectionHeader title={copy.scenesTitle} desc={copy.scenesDesc} href="/skills" locale={locale} />
+                <div className="grid gap-3 xl:grid-cols-3">
+                  {sceneCards.map((scene) => (
+                    <SceneCardView
+                      key={scene.slug}
+                      scene={scene}
+                      count={sceneCountMap.get(scene.slug) ?? 0}
+                      locale={locale}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <section className="mt-5">
+                <SubmitBanner locale={locale} />
+              </section>
+            </div>
+
+            <aside className="sticky top-5 self-start">
+              <div className="rounded-[22px] bg-white/94 px-5 py-4.5 shadow-[0_16px_48px_rgba(102,118,197,0.06)] ring-1 ring-white/90">
+                <TopTrendCard skills={data.trendingSkills ?? data.latestSkills} copy={copy} />
+                <div className="my-4 h-px bg-[#EEF1FA]" />
+                <LatestActivityCard locale={locale} items={data.latestActivities ?? []} />
+                <div className="my-4 h-px bg-[#EEF1FA]" />
+                <WeeklyRankingCard locale={locale} contributors={data.weeklyContributors ?? []} />
+              </div>
+            </aside>
           </div>
-        </section>
-
-        <section className="mt-14">
-          <SectionTitle title={copy.sections.featured} actionLabel={copy.actions.viewAll} actionHref="/skills" />
-          <div className="grid gap-5 lg:grid-cols-3">
-            {featuredSkills.map((skill) => (
-              <SkillCard
-                key={skill.id}
-                skill={skill}
-                locale={locale}
-                hotLabel={copy.hot}
-                favoriteLabel={copy.actions.favorite}
-                detailsLabel={copy.actions.details}
-                onFavoriteToggle={handleHomepageFavoriteToggle}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-14">
-          <SectionTitle title={copy.sections.latest} actionLabel={copy.actions.viewAll} actionHref="/skills" />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {data.latestSkills.map((skill) => (
-              <LatestSkillCard key={skill.id} skill={skill} locale={locale} />
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-14 grid gap-4 lg:grid-cols-3">
-          <StatsCard
-            value={formatStatValue(locale, data.stats.skillFavorites)}
-            label={copy.stats.favorites.label}
-            description={copy.stats.favorites.description}
-            tone="bg-blue-50 text-brand-600"
-            iconSrc={statIconMap.favorites}
-          />
-          <StatsCard
-            value={formatStatValue(locale, data.stats.qualityTemplates)}
-            label={copy.stats.templates.label}
-            description={copy.stats.templates.description}
-            tone="bg-emerald-50 text-emerald-600"
-            iconSrc={statIconMap.templates}
-          />
-          <StatsCard
-            value={formatStatValue(locale, data.stats.monthlyVisits)}
-            label={copy.stats.visits.label}
-            description={copy.stats.visits.description}
-            tone="bg-orange-50 text-orange-500"
-            iconSrc={statIconMap.visits}
-          />
-        </section>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

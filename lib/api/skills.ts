@@ -1,14 +1,21 @@
 import type { SkillDetail, SkillFavoriteResponse, SkillFilters, SkillListQuery, SkillListResponse } from "@/lib/types/skills";
 import { resolveApiUrl } from "@/lib/api-base";
+import { fetchWithSsrTimeout, isRetryableFetchError } from "@/lib/api/ssr-fetch";
 import { getSkillsMockData, skillFiltersMockData } from "@/lib/skills-data";
 
-const SERVER_FETCH_TIMEOUT_MS = 1200;
 const ENABLE_SKILLS_API_FALLBACK = process.env.NEXT_PUBLIC_ENABLE_SKILLS_API_FALLBACK === "true";
 
 type ApiResponse<T> = {
   code: number;
   message: string;
   data: T;
+};
+
+const EMPTY_SKILL_FILTERS: SkillFilters = {
+  categories: [],
+  categoryTree: [],
+  scenes: [],
+  types: [],
 };
 
 function toQueryString(query: SkillListQuery): string {
@@ -23,27 +30,24 @@ function toQueryString(query: SkillListQuery): string {
   return params.toString();
 }
 
-async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
-  if (typeof window !== "undefined") {
-    return fetch(input, init);
-  }
+function getEmptySkillList(query: SkillListQuery): SkillListResponse {
+  const page = query.page && query.page > 0 ? query.page : 1;
+  const pageSize = query.pageSize && query.pageSize > 0 ? query.pageSize : 9;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SERVER_FETCH_TIMEOUT_MS);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return {
+    list: [],
+    pagination: {
+      page,
+      pageSize,
+      total: 0,
+      totalPages: 0,
+    },
+  };
 }
 
 export async function getSkillFilters(): Promise<SkillFilters> {
   try {
-    const res = await fetchWithTimeout(resolveApiUrl("/api/v1/skills/filters"), {
+    const res = await fetchWithSsrTimeout(resolveApiUrl("/api/v1/skills/filters"), {
       next: { revalidate: 300 },
     });
     const json = await res.json();
@@ -54,10 +58,10 @@ export async function getSkillFilters(): Promise<SkillFilters> {
 
     return json.data;
   } catch (error) {
-    if (!ENABLE_SKILLS_API_FALLBACK) {
+    if (!ENABLE_SKILLS_API_FALLBACK && !isRetryableFetchError(error)) {
       throw error;
     }
-    return skillFiltersMockData;
+    return ENABLE_SKILLS_API_FALLBACK ? skillFiltersMockData : EMPTY_SKILL_FILTERS;
   }
 }
 
@@ -65,7 +69,7 @@ export async function getSkills(query: SkillListQuery): Promise<SkillListRespons
   const qs = toQueryString(query);
   const url = resolveApiUrl(`/api/v1/skills${qs ? `?${qs}` : ""}`);
   try {
-    const res = await fetchWithTimeout(
+    const res = await fetchWithSsrTimeout(
       url,
       typeof window === "undefined"
         ? {
@@ -83,10 +87,10 @@ export async function getSkills(query: SkillListQuery): Promise<SkillListRespons
 
     return json.data;
   } catch (error) {
-    if (!ENABLE_SKILLS_API_FALLBACK) {
+    if (!ENABLE_SKILLS_API_FALLBACK && !isRetryableFetchError(error)) {
       throw error;
     }
-    return getSkillsMockData(query);
+    return ENABLE_SKILLS_API_FALLBACK ? getSkillsMockData(query) : getEmptySkillList(query);
   }
 }
 
@@ -122,9 +126,17 @@ export async function unfavoriteSkill(skillId: string): Promise<SkillFavoriteRes
   return json.data;
 }
 
-export async function getSkillDetail(slug: string, init?: RequestInit): Promise<SkillDetail | null> {
-  const res = await fetchWithTimeout(resolveApiUrl(`/api/v1/skills/${slug}`), {
-    ...(typeof window === "undefined" ? { next: { revalidate: 60 } } : { cache: "no-store" }),
+export async function getSkillDetail(
+  slug: string,
+  init?: RequestInit,
+  options?: { trackView?: boolean },
+): Promise<SkillDetail | null> {
+  const params = new URLSearchParams();
+  if (options?.trackView) {
+    params.set("trackView", "true");
+  }
+  const res = await fetchWithSsrTimeout(resolveApiUrl(`/api/v1/skills/${slug}${params.size ? `?${params.toString()}` : ""}`), {
+    cache: "no-store",
     ...(init || {}),
   });
 
