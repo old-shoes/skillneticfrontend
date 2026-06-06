@@ -288,6 +288,11 @@ export function SkillDetailPage({ locale, skill }: Props) {
               <div className="min-w-0">
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600">{skill.category.name}</span>
+                  {skill.sourceType === "github" ? (
+                    <span className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-semibold text-[#4f46ff]">
+                      {locale === "en" ? "GitHub Imported" : "GitHub 收录"}
+                    </span>
+                  ) : null}
                   {skill.isHot ? <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-500">Hot</span> : null}
                   {skill.isFeatured ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">Featured</span> : null}
                 </div>
@@ -298,6 +303,15 @@ export function SkillDetailPage({ locale, skill }: Props) {
 
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-500">
               {skill.authorName ? <span>{locale === "en" ? "Uploaded by" : "上传者"} {skill.authorName}</span> : null}
+              {skill.sourceType === "github" ? <span>{locale === "en" ? "Source" : "来源"}: GitHub</span> : null}
+              {skill.sourceType === "github" && skill.sourceName ? <span>{locale === "en" ? "Repository" : "原仓库"}: {skill.sourceName}</span> : null}
+              {skill.sourceType === "github" && skill.originalAuthor ? <span>{locale === "en" ? "Author" : "原作者"}: {skill.originalAuthor}</span> : null}
+              {skill.sourceType === "github" && skill.license ? <span>License: {skill.license}</span> : null}
+              {skill.sourceType === "github" && skill.sourceUrl ? (
+                <a href={skill.sourceUrl} target="_blank" rel="noreferrer" className="font-medium text-brand-600 underline underline-offset-4">
+                  {locale === "en" ? "Open GitHub Repo" : "查看 GitHub 仓库"}
+                </a>
+              ) : null}
               <span>{locale === "en" ? "Updated" : "更新于"} {formatDate(locale, skill.updatedAt)}</span>
               <span>{formatMetric(locale, skill.viewCount)} {locale === "en" ? "views" : "浏览"}</span>
               <span>{formatMetric(locale, favoriteCount)} {locale === "en" ? "favorites" : "收藏"}</span>
