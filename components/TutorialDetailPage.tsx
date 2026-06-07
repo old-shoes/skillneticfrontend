@@ -12,7 +12,7 @@ import {
   submitTutorialHelpfulVote,
 } from "@/lib/api/tutorial-detail";
 import { trackEvent } from "@/lib/api/track";
-import { getMessages, localeNumberFormat, type Locale, withLocale } from "@/lib/i18n";
+import { formatChinaDate, getMessages, localeNumberFormat, type Locale, withLocale } from "@/lib/i18n";
 import type { TutorialDetailProps, TutorialRelatedItem } from "@/lib/types/tutorial-detail";
 
 type TocItem = {
@@ -68,11 +68,7 @@ function formatMetric(locale: Locale, value: number): string {
 }
 
 function formatDate(locale: Locale, value: string): string {
-  return new Date(value).toLocaleDateString(localeNumberFormat[locale], {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  return formatChinaDate(value, locale);
 }
 
 function SidebarCard({

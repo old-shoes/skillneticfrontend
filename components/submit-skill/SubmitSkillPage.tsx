@@ -457,6 +457,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
   const promptFileInputRef = useRef<HTMLInputElement | null>(null);
   const [promptInputMode, setPromptInputMode] = useState<PromptInputMode>("manual");
   const leafCategories = useMemo(() => getLeafCategories(meta), [meta]);
+  const emptyDraft = useMemo(() => createEmptyDraft(meta), [meta]);
 
   useEffect(() => {
     let active = true;
@@ -664,6 +665,26 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
     if (nextId || submissionId) {
       params.set("id", nextId || submissionId);
     }
+    router.push(withLocale(locale, `/me/submit?${params.toString()}`), { scroll: true });
+  }
+
+  function switchMode(nextMode: SubmitSkillMode) {
+    if (nextMode === mode) {
+      return;
+    }
+
+    setMode(nextMode);
+    setDraft(emptyDraft);
+    setGithubUrlInput("");
+    setGithubParsed(null);
+    setTagsInput("");
+    setPromptInputMode("manual");
+    setError(null);
+    setSuccessMessage(null);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("step", "basic");
+    params.delete("id");
     router.push(withLocale(locale, `/me/submit?${params.toString()}`), { scroll: true });
   }
 
@@ -1231,14 +1252,14 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
           <div className="text-sm font-semibold text-slate-700">{locale === "en" ? "Submission Mode" : "提交方式"}</div>
           <button
             type="button"
-            onClick={() => setMode("manual")}
+            onClick={() => switchMode("manual")}
             className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === "manual" ? "bg-brand-500 text-white" : "border border-slate-200 bg-white text-slate-600"}`}
           >
             {locale === "en" ? "Manual Entry" : "手动填写"}
           </button>
           <button
             type="button"
-            onClick={() => setMode("github")}
+            onClick={() => switchMode("github")}
             className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === "github" ? "bg-brand-500 text-white" : "border border-slate-200 bg-white text-slate-600"}`}
           >
             {locale === "en" ? "Import from GitHub" : "从 GitHub 导入"}

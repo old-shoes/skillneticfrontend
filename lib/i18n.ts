@@ -65,6 +65,44 @@ export const localeNumberFormat: Record<Locale, string> = {
   en: "en-US",
 };
 
+export const chinaTimeZone = "Asia/Shanghai";
+
+export function formatChinaDate(value: string | null | undefined, locale: Locale) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat(localeNumberFormat[locale], {
+    timeZone: chinaTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export function formatChinaDateTime(value: string | null | undefined, locale: Locale) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat(localeNumberFormat[locale], {
+    timeZone: chinaTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
 export const messages = {
   zh: {
     shell: {

@@ -5,8 +5,12 @@ import { LocalizedLink } from "@/components/LocalizedLink";
 import { ProfileLoginRequired, ProfileWorkspaceShell } from "@/components/profile/profile-shared";
 import { clearAuthSession, fetchRealMe } from "@/lib/auth";
 import { deleteSubmitSkillSubmission, getMySkillSubmissions } from "@/lib/api/submit-skill";
-import type { Locale } from "@/lib/i18n";
+import { formatChinaDateTime, type Locale } from "@/lib/i18n";
 import type { SkillSubmissionListItem, SkillSubmitStatus } from "@/lib/types/submit-skill";
+
+function formatSubmissionDate(value: string | null | undefined, locale: Locale) {
+  return formatChinaDateTime(value, locale);
+}
 
 type Props = {
   locale: Locale;
@@ -364,8 +368,8 @@ export function MySkillSubmissionsPage({ locale }: Props) {
                         ) : null}
                         <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-400">
                           <span>{text.category}: {item.category?.name || "-"}</span>
-                          <span>{text.updatedAt}: {item.updatedAt}</span>
-                          <span>{text.submittedAt}: {item.submittedAt || "-"}</span>
+                          <span>{text.updatedAt}: {formatSubmissionDate(item.updatedAt, locale)}</span>
+                          <span>{text.submittedAt}: {formatSubmissionDate(item.submittedAt, locale)}</span>
                         </div>
                         {tags.length > 0 ? (
                           <div className="mt-2.5 flex flex-wrap gap-2">

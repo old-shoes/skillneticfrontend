@@ -6,7 +6,7 @@ import { ProfileLoginRequired } from "@/components/profile/profile-shared";
 import { getMeSkillSubmissions, getProfileOverview, getProfileSecurity } from "@/lib/api/profile";
 import { clearAuthSession, fetchRealMe } from "@/lib/auth";
 import type { Locale } from "@/lib/i18n";
-import { localeNumberFormat } from "@/lib/i18n";
+import { formatChinaDate, localeNumberFormat } from "@/lib/i18n";
 import type { ProfileOverview, ProfileSecurity } from "@/lib/types/profile";
 import type { SkillSubmissionListItem, SkillSubmitStatus } from "@/lib/types/submit-skill";
 
@@ -300,18 +300,7 @@ function AssetIcon({
 }
 
 function formatDate(value: string | null | undefined, locale: Locale) {
-  if (!value) {
-    return "-";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-  return new Intl.DateTimeFormat(localeNumberFormat[locale], {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  return formatChinaDate(value, locale);
 }
 
 function formatRelativeDate(value: string | null | undefined, locale: Locale) {
