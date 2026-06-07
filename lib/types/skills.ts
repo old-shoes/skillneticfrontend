@@ -42,6 +42,11 @@ export type SkillListItem = {
   publishedAt: string;
   isFeatured: boolean;
   isHot: boolean;
+  sourceType?: string;
+  sourceUrl?: string | null;
+  sourceName?: string | null;
+  originalAuthor?: string | null;
+  license?: string | null;
   isFavorited?: boolean;
 };
 
@@ -106,5 +111,10 @@ export type SkillDetail = {
   updatedAt: string;
   isFeatured: boolean;
   isHot: boolean;
+  sourceType?: string;
+  sourceUrl?: string | null;
+  sourceName?: string | null;
+  originalAuthor?: string | null;
+  license?: string | null;
   isFavorited?: boolean;
 };

@@ -1,4 +1,5 @@
 export type SubmitSkillStep = "basic" | "prompt";
+export type SubmitSkillMode = "manual" | "github";
 
 export type SkillDifficulty = "beginner" | "intermediate" | "advanced";
 export type SkillType = "prompt" | "workflow" | "tutorial" | "tool_config" | "agent";
@@ -66,6 +67,13 @@ export type SkillFaq = {
 
 export type SkillSubmissionDraft = {
   id?: string;
+  submissionType?: "manual" | "github";
+  sourceType?: "official" | "user" | "github" | "user_github";
+  githubUrl?: string | null;
+  repoFullName?: string | null;
+  sourceName?: string | null;
+  originalAuthor?: string | null;
+  license?: string | null;
   title: string;
   slug?: string;
   summary: string;
@@ -83,6 +91,7 @@ export type SkillSubmissionDraft = {
   promptRole: string;
   promptFileName?: string | null;
   systemPrompt: string;
+  attachmentUrls?: string[];
   status: SkillSubmitStatus;
   qualityScore?: number | null;
   reviewComment?: string | null;
@@ -112,6 +121,10 @@ export type SkillSubmissionListItem = {
   summary: string;
   coverImage?: string | null;
   tags: string[];
+  submissionType?: "manual" | "github";
+  sourceType?: "official" | "user" | "github" | "user_github";
+  githubUrl?: string | null;
+  repoFullName?: string | null;
   status: SkillSubmitStatus;
   difficulty: SkillDifficulty;
   category?: SkillCategory | null;
@@ -127,4 +140,55 @@ export type SkillSubmissionListResponse = {
     total: number;
     totalPages: number;
   };
+};
+
+export type UserGithubSkillParseResult = {
+  repo_full_name: string;
+  github_url: string;
+  clone_url: string;
+  default_branch?: string | null;
+  repo_description?: string | null;
+  stars_count: number;
+  forks_count: number;
+  watchers_count: number;
+  open_issues_count: number;
+  license?: string | null;
+  skill_md_found: boolean;
+  readme_found: boolean;
+  parsed: {
+    title: string;
+    summary: string;
+    description: string;
+    category?: string | null;
+    skill_type?: string | null;
+    difficulty?: SkillDifficulty | null;
+    tags: string[];
+    use_cases: string[];
+    prompt_role?: string | null;
+    system_prompt?: string;
+  };
+  warnings: string[];
+};
+
+export type UserGithubSkillSubmitPayload = {
+  github_url: string;
+  title: string;
+  summary: string;
+  description?: string;
+  category?: string;
+  skill_type?: SkillType;
+  difficulty?: SkillDifficulty;
+  tags: string[];
+  use_cases?: string[];
+  usage_guide?: string;
+  example_input?: string;
+  example_output?: string;
+  cover_url?: string;
+  attachment_urls?: string[];
+};
+
+export type UserGithubSkillSubmitResult = {
+  skill_id: string;
+  submission_id: string;
+  status: SkillSubmitStatus;
 };

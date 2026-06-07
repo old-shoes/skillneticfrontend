@@ -92,6 +92,18 @@ function DetailPill({ children }: { children: ReactNode }) {
   return <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">{children}</span>;
 }
 
+function downloadMarkdownFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 function markdownComponents(): Components {
   return {
     h2({ children, node: _node, ...props }) {
@@ -164,18 +176,6 @@ function tagTone(tag: SkillTag) {
   return "bg-slate-100 text-slate-600";
 }
 
-function downloadMarkdownFile(filename: string, content: string) {
-  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 export function SkillDetailPage({ locale, skill }: Props) {
   const copy = getMessages(locale).skills;
   const pageUrl = withLocale(locale, `/skills/${skill.slug}`);
@@ -184,6 +184,7 @@ export function SkillDetailPage({ locale, skill }: Props) {
   const [isFavorited, setIsFavorited] = useState(Boolean(skill.isFavorited));
   const [toast, setToast] = useState("");
   const iconSrc = skill.coverIcon ? skillIconMap[skill.coverIcon] : skillIconMap[skill.type];
+  const isGithubSource = skill.sourceType === "github" || skill.sourceType === "user_github";
 
   useEffect(() => {
     trackEvent({
@@ -288,6 +289,11 @@ export function SkillDetailPage({ locale, skill }: Props) {
               <div className="min-w-0">
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600">{skill.category.name}</span>
+                  {isGithubSource ? (
+                    <span className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-semibold text-[#4f46ff]">
+                      {locale === "en" ? "GitHub Imported" : "GitHub 收录"}
+                    </span>
+                  ) : null}
                   {skill.isHot ? <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-500">Hot</span> : null}
                   {skill.isFeatured ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">Featured</span> : null}
                 </div>
@@ -298,6 +304,22 @@ export function SkillDetailPage({ locale, skill }: Props) {
 
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-500">
               {skill.authorName ? <span>{locale === "en" ? "Uploaded by" : "上传者"} {skill.authorName}</span> : null}
+              {isGithubSource ? <span>{locale === "en" ? "Source" : "来源"}: GitHub</span> : null}
+              {isGithubSource && skill.sourceUrl ? (
+                <span className="inline-flex items-center gap-2">
+                  <span>{locale === "en" ? "Repository" : "原仓库"}:</span>
+                  <a
+                    href={skill.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex max-w-full items-center rounded-full border border-brand-200 bg-brand-50 px-3 py-1 font-semibold text-brand-700 shadow-[0_6px_18px_rgba(37,99,235,0.12)] transition hover:border-brand-300 hover:bg-brand-100 hover:text-brand-800"
+                  >
+                    <span className="truncate">{skill.sourceName || skill.sourceUrl}</span>
+                  </a>
+                </span>
+              ) : null}
+              {isGithubSource && skill.originalAuthor ? <span>{locale === "en" ? "Author" : "原作者"}: {skill.originalAuthor}</span> : null}
+              {isGithubSource && skill.license ? <span>License: {skill.license}</span> : null}
               <span>{locale === "en" ? "Updated" : "更新于"} {formatDate(locale, skill.updatedAt)}</span>
               <span>{formatMetric(locale, skill.viewCount)} {locale === "en" ? "views" : "浏览"}</span>
               <span>{formatMetric(locale, favoriteCount)} {locale === "en" ? "favorites" : "收藏"}</span>
@@ -331,13 +353,15 @@ export function SkillDetailPage({ locale, skill }: Props) {
               >
                 {isFavorited ? (locale === "en" ? "Favorited" : "已收藏") : copy.card.favorite}
               </button>
-              <button
-                type="button"
-                onClick={handleDownloadMarkdown}
-                className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-brand-200 hover:text-brand-600"
-              >
-                {copy.detail.downloadMarkdown}
-              </button>
+              {!isGithubSource ? (
+                <button
+                  type="button"
+                  onClick={handleDownloadMarkdown}
+                  className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-brand-200 hover:text-brand-600"
+                >
+                  {copy.detail.downloadMarkdown}
+                </button>
+              ) : null}
             </section>
 
             <div className="mt-8">
@@ -372,13 +396,15 @@ export function SkillDetailPage({ locale, skill }: Props) {
                   <span className="text-right font-medium text-slate-900">{formatMetric(locale, skill.viewCount)}</span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={handleDownloadMarkdown}
-                className="mt-5 w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-600"
-              >
-                {copy.detail.downloadMarkdown}
-              </button>
+              {!isGithubSource ? (
+                <button
+                  type="button"
+                  onClick={handleDownloadMarkdown}
+                  className="mt-5 w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-600"
+                >
+                  {copy.detail.downloadMarkdown}
+                </button>
+              ) : null}
             </section>
 
             {tocItems.length > 0 ? (

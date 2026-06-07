@@ -22,6 +22,9 @@ type SkillCardData = {
   isFavorited?: boolean;
   isFeatured?: boolean;
   authorName?: string;
+  sourceType?: string;
+  sourceName?: string | null;
+  originalAuthor?: string | null;
 };
 
 type Props = {
@@ -145,6 +148,7 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
   const tags = maxTags ? skill.tags.slice(0, maxTags) : skill.tags;
   const showBookmark = Boolean(onFavorite);
   const authorName = skill.authorName?.trim();
+  const isGithubSource = skill.sourceType === "github" || skill.sourceType === "user_github";
   const isCompact = variant === "compact";
   const isRecommended = variant === "recommended";
 
@@ -168,6 +172,13 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <button type="button" onClick={onOpen} className="min-w-0 text-left">
+              <div className="flex flex-wrap items-center gap-2">
+                {isGithubSource ? (
+                  <span className="rounded-full bg-[#eef3ff] px-2.5 py-0.5 text-[10px] font-semibold text-[#4f46ff]">
+                    GitHub 收录
+                  </span>
+                ) : null}
+              </div>
               <h3 className={`font-semibold text-[#171c28] ${isCompact ? "line-clamp-1 text-[14px]" : "line-clamp-1 text-[15px]"}`}>
                 {skill.title}
               </h3>
@@ -206,6 +217,7 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
 
         {isRecommended ? (
           <div className="mt-3 flex items-center gap-4 text-[11px] text-[#6b7283]">
+            {isGithubSource && skill.sourceName ? <span className="truncate text-[#4f46ff]">{skill.sourceName}</span> : null}
             <span className="inline-flex items-center gap-2">
               <StatIcon kind="favorite" />
               {formatMetric(skill.favoriteCount)}
@@ -217,13 +229,13 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
           </div>
         ) : (
           <div className="mt-3 flex items-center justify-between gap-3">
-            {authorName ? (
+            {authorName || (isGithubSource && skill.originalAuthor) ? (
               <div className="flex min-w-0 items-center gap-2">
                 <span className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-gradient-to-br from-[#6f82ff] to-[#5f66f4] text-[10px] font-semibold text-white">
-                  {getAuthorInitials(authorName)}
+                  {getAuthorInitials(authorName || skill.originalAuthor || "G")}
                 </span>
-                <span className="truncate text-[12px] text-[#5f6779]">{authorName}</span>
-                <span className="text-[#4f46ff]">✔</span>
+                <span className="truncate text-[12px] text-[#5f6779]">{authorName || skill.originalAuthor}</span>
+                {isGithubSource ? <span className="text-[#4f46ff]">GitHub</span> : <span className="text-[#4f46ff]">✔</span>}
               </div>
             ) : (
               <div />
