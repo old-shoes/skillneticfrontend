@@ -148,7 +148,7 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
   const tags = maxTags ? skill.tags.slice(0, maxTags) : skill.tags;
   const showBookmark = Boolean(onFavorite);
   const authorName = skill.authorName?.trim();
-  const isGithubSource = skill.sourceType === "github";
+  const isGithubSource = skill.sourceType === "github" || skill.sourceType === "user_github";
   const isCompact = variant === "compact";
   const isRecommended = variant === "recommended";
 

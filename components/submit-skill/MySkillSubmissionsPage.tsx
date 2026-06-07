@@ -352,6 +352,16 @@ export function MySkillSubmissionsPage({ locale }: Props) {
                           </span>
                         </div>
                         <p className="mt-1.5 line-clamp-3 text-sm leading-6 text-slate-600">{item.summary}</p>
+                        {item.githubUrl ? (
+                          <a
+                            href={item.githubUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 block truncate text-xs font-medium text-brand-600 hover:text-brand-700 sm:text-[13px]"
+                          >
+                            {item.githubUrl}
+                          </a>
+                        ) : null}
                         <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-400">
                           <span>{text.category}: {item.category?.name || "-"}</span>
                           <span>{text.updatedAt}: {item.updatedAt}</span>

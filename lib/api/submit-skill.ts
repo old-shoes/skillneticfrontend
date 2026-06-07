@@ -2,6 +2,9 @@ import type {
   SkillSubmissionDraft,
   SkillSubmissionListResponse,
   SkillSubmissionMeta,
+  UserGithubSkillParseResult,
+  UserGithubSkillSubmitPayload,
+  UserGithubSkillSubmitResult,
 } from "@/lib/types/submit-skill";
 import { resolveApiUrl } from "@/lib/api-base";
 import { fetchWithSsrTimeout, isRetryableFetchError } from "@/lib/api/ssr-fetch";
@@ -235,6 +238,20 @@ export function submitSkillForReview(id: string): Promise<SkillSubmissionDraft> 
   return request<SkillSubmissionDraft>(`/api/v1/skill-submissions/${id}/submit`, {
     method: "POST",
     body: JSON.stringify({}),
+  });
+}
+
+export function parseUserGithubSkill(githubUrl: string): Promise<UserGithubSkillParseResult> {
+  return request<UserGithubSkillParseResult>("/api/v1/user/skills/github/parse", {
+    method: "POST",
+    body: JSON.stringify({ github_url: githubUrl }),
+  });
+}
+
+export function submitUserGithubSkill(payload: UserGithubSkillSubmitPayload): Promise<UserGithubSkillSubmitResult> {
+  return request<UserGithubSkillSubmitResult>("/api/v1/user/skills/github/submit", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

@@ -882,6 +882,16 @@ export function ProfileCenterPage({ locale }: Props) {
                               <div className="mt-1 line-clamp-2 max-w-[620px] text-[13px] leading-5 text-slate-500 sm:text-[14px] sm:leading-6">
                                 {item.summary}
                               </div>
+                              {item.githubUrl ? (
+                                <a
+                                  href={item.githubUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-2 block truncate text-[12px] font-medium text-brand-600 hover:text-brand-700 sm:text-[13px]"
+                                >
+                                  {item.githubUrl}
+                                </a>
+                              ) : null}
                               {tags.length > 0 ? (
                                 <div className="mt-2.5 flex flex-wrap gap-2">
                                   {tags.slice(0, 3).map((tag) => (
