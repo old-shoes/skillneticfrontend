@@ -550,7 +550,7 @@ export function SkillsLibraryPage({
                     {skills.map((skill) => (
                       <div key={skill.id} className="mb-4 break-inside-avoid">
                         <SkillCard
-                          skill={skill}
+                          skill={{ ...skill, categoryName: skill.category.name }}
                           variant="grid"
                           favoriteLabel={copy.card.favorite}
                           onFavorite={() => handleFavorite(skill)}
@@ -564,7 +564,7 @@ export function SkillsLibraryPage({
                     {skills.map((skill) => (
                       <SkillCard
                         key={skill.id}
-                        skill={skill}
+                        skill={{ ...skill, categoryName: skill.category.name }}
                         variant="compact"
                         favoriteLabel={copy.card.favorite}
                         onFavorite={() => handleFavorite(skill)}

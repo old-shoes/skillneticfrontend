@@ -669,6 +669,7 @@ export function Homepage({ data, locale }: Props) {
                       key={skill.id}
                       skill={{
                         ...skill,
+                        categoryName: skill.categoryName,
                         type: skill.coverIcon || "prompt",
                       }}
                       variant="recommended"

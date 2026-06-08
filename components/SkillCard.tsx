@@ -14,6 +14,7 @@ type SkillCardData = {
   summary: string;
   coverIcon?: string | null;
   categorySlug?: string;
+  categoryName?: string | null;
   categoryColor?: string;
   type?: string;
   tags: SkillCardTag[];
@@ -113,6 +114,24 @@ function pickTone(skill: SkillCardData): string {
   return cardColorMap.blue;
 }
 
+function formatTypeLabel(type?: string): string {
+  if (!type) {
+    return "未标注";
+  }
+
+  const labelMap: Record<string, string> = {
+    prompt: "提示词",
+    workflow: "工作流",
+    tutorial: "教程",
+    tool_config: "工具配置",
+    agent: "智能体",
+    browse: "浏览器技能",
+    user: "用户技能",
+  };
+
+  return labelMap[type] || type.replace(/_/g, " ");
+}
+
 function StatIcon({ kind }: { kind: "favorite" | "view" | "bookmark" }) {
   if (kind === "favorite") {
     return <span className="text-[#f7b500]">★</span>;
@@ -145,7 +164,13 @@ function FavoriteToggleIcon({ active }: { active: boolean }) {
 export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, maxTags }: Props) {
   const tone = pickTone(skill);
   const icon = pickIcon(skill);
-  const tags = maxTags ? skill.tags.slice(0, maxTags) : skill.tags;
+  const tags = skill.tags;
+  const sceneTags = tags.filter((tag) => tag.type === "scene").slice(0, maxTags ?? 2);
+  const typeTags = tags
+    .filter((tag) => tag.type === "type" && tag.name.toLowerCase() !== skill.type?.toLowerCase())
+    .slice(0, maxTags ?? 2);
+  const categoryLabel = skill.categoryName?.trim() || skill.categorySlug || "未分类";
+  const typeLabel = formatTypeLabel(skill.type);
   const showBookmark = Boolean(onFavorite);
   const authorName = skill.authorName?.trim();
   const isGithubSource = skill.sourceType === "github" || skill.sourceType === "user_github";
@@ -202,17 +227,38 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
       </div>
 
       <div className={`${isCompact ? "mt-2.5" : "mt-3"}`}>
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <span
-              key={tag.id}
-              className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                tag.type === "scene" ? "bg-[#ecfaf3] text-[#3fa06a]" : "bg-[#f3f5ff] text-[#4f46ff]"
-              }`}
-            >
-              {tag.name}
+        <div className="space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="rounded-full bg-[#f4f7fb] px-2.5 py-1 font-semibold text-[#5f6779]">分类</span>
+            <span className="rounded-full bg-[#f9fafb] px-2.5 py-1 font-medium text-[#1f2430]">
+              {categoryLabel}
             </span>
-          ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="rounded-full bg-[#ecfaf3] px-2.5 py-1 font-semibold text-[#3fa06a]">场景</span>
+            {sceneTags.length > 0 ? (
+              sceneTags.map((tag) => (
+                <span key={tag.id} className="rounded-full bg-[#f3fcf7] px-2.5 py-1 font-medium text-[#3fa06a]">
+                  {tag.name}
+                </span>
+              ))
+            ) : (
+              <span className="rounded-full bg-[#f9fafb] px-2.5 py-1 font-medium text-[#7b8496]">未标注</span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="rounded-full bg-[#f3f5ff] px-2.5 py-1 font-semibold text-[#4f46ff]">类型</span>
+            <span className="rounded-full bg-[#eef2ff] px-2.5 py-1 font-medium text-[#4f46ff]">{typeLabel}</span>
+            {typeTags.length > 0 ? (
+              typeTags.map((tag) => (
+                <span key={tag.id} className="rounded-full bg-[#f7f8ff] px-2.5 py-1 font-medium text-[#6570d6]">
+                  {tag.name}
+                </span>
+              ))
+            ) : null}
+          </div>
         </div>
 
         {isRecommended ? (
