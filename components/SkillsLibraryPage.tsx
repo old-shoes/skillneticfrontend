@@ -545,18 +545,34 @@ export function SkillsLibraryPage({
               </div>
             ) : (
               <>
-                <div className={`grid gap-4 ${viewMode === "grid" ? "xl:grid-cols-3" : "grid-cols-1"}`}>
-                  {skills.map((skill) => (
-                    <SkillCard
-                      key={skill.id}
-                      skill={skill}
-                      variant={viewMode === "grid" ? "grid" : "compact"}
-                      favoriteLabel={copy.card.favorite}
-                      onFavorite={() => handleFavorite(skill)}
-                      onOpen={() => openSkill(skill)}
-                    />
-                  ))}
-                </div>
+                {viewMode === "grid" ? (
+                  <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
+                    {skills.map((skill) => (
+                      <div key={skill.id} className="mb-4 break-inside-avoid">
+                        <SkillCard
+                          skill={skill}
+                          variant="grid"
+                          favoriteLabel={copy.card.favorite}
+                          onFavorite={() => handleFavorite(skill)}
+                          onOpen={() => openSkill(skill)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {skills.map((skill) => (
+                      <SkillCard
+                        key={skill.id}
+                        skill={skill}
+                        variant="compact"
+                        favoriteLabel={copy.card.favorite}
+                        onFavorite={() => handleFavorite(skill)}
+                        onOpen={() => openSkill(skill)}
+                      />
+                    ))}
+                  </div>
+                )}
 
                 <div className="mt-5 flex flex-col items-center gap-3">
                   {pagination.page < pagination.totalPages ? (
