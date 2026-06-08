@@ -94,7 +94,6 @@ const submitSkillMetaFallback: SkillSubmissionMeta = {
     { label: "分类", value: "categoryId" },
     { label: "标签", value: "tags" },
     { label: "Skill 类型", value: "skillType" },
-    { label: "推荐模型", value: "recommendedModels" },
     { label: "预计使用时长", value: "estimatedTime" },
     { label: "适用场景", value: "useCases" },
     { label: "Prompt 角色", value: "promptRole" },

@@ -319,7 +319,7 @@ function getCopy(locale: Locale) {
       titleRule: "2-50 字",
       summary: "一句话简介",
       summaryPlaceholder: "概括这个 Skill 能解决什么问题",
-      summaryRule: "10-80 字",
+      summaryRule: "手动填写 10-80 字，GitHub 导入不限制",
       category: "分类",
       tags: "标签",
       tagsPlaceholder: "用逗号分隔，如：小红书, 文案, 营销",
@@ -911,7 +911,12 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
       const summaryLength = draft.summary.trim().length;
       const descriptionLength = draft.description.trim().length;
       if (titleLength < 2 || titleLength > 50) return locale === "en" ? "Skill Title must be 2-50 characters." : "Skill 标题需填写 2-50 字。";
-      if (summaryLength < 10 || summaryLength > 80) return locale === "en" ? "One-line Summary must be 10-80 characters." : "一句话简介需填写 10-80 字。";
+      if (mode === "manual" && (summaryLength < 10 || summaryLength > 80)) {
+        return locale === "en" ? "One-line Summary must be 10-80 characters." : "一句话简介需填写 10-80 字。";
+      }
+      if (mode === "github" && summaryLength < 1) {
+        return locale === "en" ? "One-line Summary is required." : "一句话简介不能为空。";
+      }
       if (!draft.categoryIds.length && !draft.categoryId) return locale === "en" ? "Please select a Category." : "请选择分类。";
       if (draft.tags.length < 1 || draft.tags.length > 8) return locale === "en" ? "Tags must contain 1-8 items." : "标签需填写 1-8 个。";
       if (!draft.skillType) return locale === "en" ? "Please select a Skill Type." : "请选择 Skill 类型。";
@@ -1046,18 +1051,6 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
             className="w-full"
             triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
             popoverClassName="min-w-[220px]"
-          />
-        </Field>
-        <Field label={text.basic.recommendedModels}>
-          <HeroMultiSelect
-            ariaLabel={text.basic.recommendedModels}
-            values={draft.recommendedModels}
-            onChange={(values) => setField("recommendedModels", values)}
-            options={meta.modelOptions}
-            placeholder={text.basic.recommendedModelsPlaceholder}
-            className="w-full"
-            triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
-            popoverClassName="min-w-[260px]"
           />
         </Field>
         <Field label={text.basic.coverPreset}>
@@ -1438,15 +1431,6 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
                       {" "}
                       {draft.useCases.length > 0
                         ? draft.useCases.map((item) => getUseCaseLabel(locale, item, meta.useCaseOptions)).join(" / ")
-                        : text.preview.empty}
-                    </div>
-                    <div>
-                      {text.preview.recommendedModels}:
-                      {" "}
-                      {draft.recommendedModels.length > 0
-                        ? draft.recommendedModels
-                            .map((item) => meta.modelOptions.find((option) => option.value === item)?.label || item)
-                            .join(" / ")
                         : text.preview.empty}
                     </div>
                   </div>
