@@ -16,6 +16,11 @@ type ApiResponse<T> = {
   data: T;
 };
 
+type ApiValidationErrorItem = {
+  loc?: Array<string | number>;
+  msg?: string;
+};
+
 const LOCAL_SUBMIT_SKILL_DRAFT_KEY = "ai_skill_submit_draft";
 
 type LegacyPromptFields = {
@@ -149,11 +154,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
 
-  const json = (await res.json()) as Partial<ApiResponse<T>> & { detail?: string };
+  const json = (await res.json()) as Partial<ApiResponse<T>> & {
+    detail?: string | ApiValidationErrorItem[];
+  };
   if (!res.ok || json.code !== 0 || json.data === undefined) {
-    throw new Error(json.message || json.detail || "Request failed");
+    throw new Error(json.message || formatApiErrorDetail(json.detail) || "Request failed");
   }
   return json.data;
+}
+
+function formatApiErrorDetail(detail?: string | ApiValidationErrorItem[]): string | null {
+  if (!detail) {
+    return null;
+  }
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (!Array.isArray(detail) || detail.length === 0) {
+    return null;
+  }
+  return detail
+    .map((item) => {
+      const loc = Array.isArray(item.loc) ? item.loc.filter((part) => part !== "body").join(".") : "";
+      const msg = item.msg?.trim() || "Invalid value";
+      return loc ? `${loc}: ${msg}` : msg;
+    })
+    .join("; ");
 }
 
 export function getSubmitSkillMeta(): Promise<SkillSubmissionMeta> {
