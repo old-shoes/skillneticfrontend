@@ -177,47 +177,6 @@ export function CommunityWatchPage({ locale, snapshot }: Props) {
               </div>
             </section>
 
-            <section className="rounded-[26px] border border-white/70 bg-white/92 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-950">{isZh ? "高热讨论" : "High-heat discussions"}</h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {isZh ? "评论量高的问题与讨论，适合捕捉社区真实痛点。" : "Issues and discussions with heavy comment volume, useful for identifying real community pain points."}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {snapshot.issues.map((issue) => (
-                  <a
-                    key={issue.url}
-                    href={issue.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block rounded-[18px] border border-slate-100 bg-slate-50/85 p-4 transition hover:bg-white hover:shadow-[0_12px_34px_rgba(15,23,42,0.06)]"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="line-clamp-2 text-base font-semibold text-slate-950">{issue.title}</div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          {issue.repository} · @{issue.author}
-                        </div>
-                      </div>
-                      <div className="rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white">
-                        {issue.commentCountLabel} {isZh ? "评论" : "comments"}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {issue.labels.map((label) => (
-                        <span key={label} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </section>
           </div>
 
           <div className="space-y-4">
