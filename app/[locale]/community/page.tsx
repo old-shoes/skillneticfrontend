@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { PlaceholderPage } from "@/components/PlaceholderPage";
-import { getStaticPageProps } from "@/lib/placeholder-pages";
+import { CommunityWatchPage } from "@/components/CommunityWatchPage";
+import { getCommunityWatch } from "@/lib/api/community-watch";
 import { isLocale } from "@/lib/i18n";
 
 type Props = {
@@ -16,10 +16,6 @@ export default async function LocaleCommunityPage({ params }: Props) {
     notFound();
   }
 
-  const copy = getStaticPageProps(locale, "community");
-  if (!copy) {
-    notFound();
-  }
-
-  return <PlaceholderPage {...copy} />;
+  const snapshot = await getCommunityWatch();
+  return <CommunityWatchPage locale={locale} snapshot={snapshot} />;
 }
