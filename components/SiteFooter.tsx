@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { LocalizedLink } from "@/components/LocalizedLink";
+import { subscribeNewsletter } from "@/lib/api/newsletter";
 import { getLocaleFromPathname, getMessages } from "@/lib/i18n";
 import { usePathname } from "next/navigation";
 
@@ -9,6 +11,44 @@ export function SiteFooter() {
   const pathname = usePathname();
   const locale = getLocaleFromPathname(pathname);
   const copy = getMessages(locale).shell.footer;
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function handleSubscribe() {
+    const value = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setError(locale === "zh" ? "请输入正确的邮箱地址" : "Please enter a valid email address");
+      setMessage("");
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await subscribeNewsletter({
+        email: value,
+        locale,
+        source: "footer",
+      });
+      setMessage(
+        result.alreadySubscribed
+          ? locale === "zh"
+            ? "这个邮箱已经订阅过了"
+            : "This email is already subscribed"
+          : locale === "zh"
+            ? "订阅成功，后续会收到更新邮件"
+            : "Subscribed successfully. You will receive future updates."
+      );
+      setEmail("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : locale === "zh" ? "订阅失败，请稍后再试" : "Subscribe failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <footer className="border-t border-white/70 bg-white/85">
@@ -58,9 +98,30 @@ export function SiteFooter() {
           <h3 className="text-sm font-semibold text-slate-900">{copy.subscribeTitle}</h3>
           <p className="mt-2 text-sm text-slate-500">{copy.subscribeDesc}</p>
           <div className="mt-4 flex gap-2">
-            <input className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none" placeholder={copy.emailPlaceholder} />
-            <button className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white">{copy.subscribe}</button>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !submitting) {
+                  event.preventDefault();
+                  void handleSubscribe();
+                }
+              }}
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+              placeholder={copy.emailPlaceholder}
+            />
+            <button
+              type="button"
+              onClick={() => void handleSubscribe()}
+              disabled={submitting}
+              className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? (locale === "zh" ? "提交中" : "Sending") : copy.subscribe}
+            </button>
           </div>
+          {message ? <p className="mt-3 text-xs leading-6 text-emerald-600">{message}</p> : null}
+          {error ? <p className="mt-3 text-xs leading-6 text-rose-500">{error}</p> : null}
         </div>
       </div>
 

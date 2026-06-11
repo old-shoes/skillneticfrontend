@@ -38,16 +38,16 @@ export function CommunityWatchPage({ locale, snapshot }: Props) {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_26%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.12),transparent_30%),linear-gradient(180deg,#fffdf8_0%,#f8fbff_42%,#f7fafc_100%)]">
       <section className="border-b border-white/70">
         <div className="mx-auto max-w-7xl px-4 pb-7 pt-8 sm:px-6 lg:px-8">
-          <div className="max-w-4xl">
+          <div className="max-w-6xl">
             <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
               {isZh ? "GitHub 社区观察站" : "GitHub Community Watch"}
             </div>
-            <h1 className="mt-4 max-w-3xl text-[32px] font-semibold tracking-tight text-slate-950 sm:text-[40px]">
+            <h1 className="mt-4 text-[32px] font-semibold tracking-tight text-slate-950 sm:text-[40px]">
               {isZh ? "抓 GitHub 社区最受关注的仓库、议题与 Topic" : "Track the repos, issues, and topics GitHub is focusing on"}
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
+            <p className="mt-3 max-w-5xl text-sm leading-7 text-slate-600 sm:text-base">
               {isZh
-                ? "这块看板读取根目录脚本产出的 JSON 快照，适合用来观察开源热点、挖选题、找竞品和追踪开发者讨论方向。"
+                ? "观察开源热点、挖选题、找竞品和追踪开发者讨论方向。"
                 : "This board reads the JSON snapshot produced by the root script and is useful for spotting open-source momentum, content ideas, competitors, and developer conversations."}
             </p>
           </div>
@@ -252,15 +252,6 @@ export function CommunityWatchPage({ locale, snapshot }: Props) {
                     ) : null}
                   </a>
                 ))}
-              </div>
-            </section>
-
-            <section className="rounded-[26px] border border-white/70 bg-white/92 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-              <h2 className="text-xl font-semibold text-slate-950">{isZh ? "使用方式" : "How to use it"}</h2>
-              <div className="mt-4 space-y-3 text-xs leading-6 text-slate-600">
-                <p>{isZh ? "1. 后端启动后会在启动时刷新一次，并在每天固定时间自动抓取 GitHub 社区热点。" : "1. The backend refreshes once on startup and then pulls fresh GitHub community signals on a daily schedule."}</p>
-                <p>{isZh ? "2. 也可以手动触发 `POST /api/v1/community-watch/refresh`，页面会从 `/api/v1/community-watch` 直接读取最新快照。" : "2. You can also trigger `POST /api/v1/community-watch/refresh`, and the board reads the latest snapshot from `/api/v1/community-watch`."}</p>
-                <p>{isZh ? "3. 配置 `GITHUB_API_TOKEN` 与 `DEEPL_API_KEY` 后，仓库指标更稳，英文描述也会自动翻译成中文。" : "3. With `GITHUB_API_TOKEN` and `DEEPL_API_KEY`, repository metrics are more stable and English descriptions are translated into Chinese automatically."}</p>
               </div>
             </section>
           </div>
