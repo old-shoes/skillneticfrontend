@@ -11,7 +11,7 @@ export type CategoryItem = {
 export type SkillTag = {
   id: string;
   name: string;
-  type: "scene" | "difficulty" | "type";
+  type: "model" | "scene" | "difficulty" | "type";
 };
 
 export type HomepageSkill = {
@@ -36,8 +36,7 @@ export type TutorialItem = {
   slug: string;
   summary: string;
   coverImage?: string;
-  chapterCount: number;
-  durationMinutes: number;
+  readTimeMinutes: number;
 };
 
 export type HomepageStats = {
