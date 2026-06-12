@@ -400,6 +400,35 @@ export const skillFiltersMockData: SkillFilters = {
     { label: "工具配置", value: "tool_config", count: skillList.filter((skill) => skill.type === "tool_config").length },
     { label: "Agent", value: "agent", count: skillList.filter((skill) => skill.type === "agent").length },
   ],
+  runtimes: [
+    { label: "Claude Code", value: "Claude Code", count: 5 },
+    { label: "Codex", value: "Codex", count: 4 },
+    { label: "OpenClaw", value: "OpenClaw", count: 2 },
+  ],
+  languages: [
+    { label: "中文", value: "zh", count: skillList.length },
+    { label: "English", value: "en", count: 0 },
+    { label: "多语言", value: "multi", count: 0 },
+  ],
+  dashboard: {
+    total: skillList.length,
+    featuredTypes: [
+      { label: "Claude Skill", value: "claude-skill", count: 4 },
+      { label: "Codex Skill", value: "codex-skill", count: 3 },
+      { label: "OpenClaw Skill", value: "openclaw-skill", count: 2 },
+      { label: "通用 Skill", value: "general-skill", count: 8 },
+      { label: "Skill 套件", value: "skill-suite", count: 1 },
+    ],
+    hotScenes: uniqueOptions("scene")
+      .sort((a, b) => (b.count || 0) - (a.count || 0))
+      .slice(0, 7),
+    topTools: [
+      { label: "Claude Code", value: "claude-code", count: 5 },
+      { label: "Codex", value: "codex", count: 4 },
+      { label: "OpenClaw", value: "openclaw", count: 2 },
+      { label: "Cursor", value: "cursor", count: 1 },
+    ],
+  },
 };
 
 function sortSkills(list: SkillListItem[], sort: SkillSort = "latest"): SkillListItem[] {

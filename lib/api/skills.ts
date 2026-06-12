@@ -16,6 +16,14 @@ const EMPTY_SKILL_FILTERS: SkillFilters = {
   categoryTree: [],
   scenes: [],
   types: [],
+  runtimes: [],
+  languages: [],
+  dashboard: {
+    total: 0,
+    featuredTypes: [],
+    hotScenes: [],
+    topTools: [],
+  },
 };
 
 function toQueryString(query: SkillListQuery): string {
@@ -45,6 +53,13 @@ function getEmptySkillList(query: SkillListQuery): SkillListResponse {
   };
 }
 
+function canUseSkillsFallback(error: unknown): boolean {
+  if (ENABLE_SKILLS_API_FALLBACK) {
+    return true;
+  }
+  return isRetryableFetchError(error);
+}
+
 export async function getSkillFilters(): Promise<SkillFilters> {
   try {
     const res = await fetchWithSsrTimeout(resolveApiUrl("/api/v1/skills/filters"), {
@@ -58,7 +73,7 @@ export async function getSkillFilters(): Promise<SkillFilters> {
 
     return json.data;
   } catch (error) {
-    if (!ENABLE_SKILLS_API_FALLBACK && !isRetryableFetchError(error)) {
+    if (!canUseSkillsFallback(error)) {
       throw error;
     }
     return ENABLE_SKILLS_API_FALLBACK ? skillFiltersMockData : EMPTY_SKILL_FILTERS;
@@ -87,7 +102,7 @@ export async function getSkills(query: SkillListQuery): Promise<SkillListRespons
 
     return json.data;
   } catch (error) {
-    if (!ENABLE_SKILLS_API_FALLBACK && !isRetryableFetchError(error)) {
+    if (!canUseSkillsFallback(error)) {
       throw error;
     }
     return ENABLE_SKILLS_API_FALLBACK ? getSkillsMockData(query) : getEmptySkillList(query);

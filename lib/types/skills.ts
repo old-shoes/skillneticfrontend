@@ -47,6 +47,10 @@ export type SkillListItem = {
   sourceName?: string | null;
   originalAuthor?: string | null;
   license?: string | null;
+  runtimeLabels?: string[];
+  primaryRuntime?: string | null;
+  inferredSubtype?: string | null;
+  inferredLanguage?: string | null;
   isFavorited?: boolean;
 };
 
@@ -61,6 +65,22 @@ export type SkillFilters = {
   categoryTree: SkillCategoryTree[];
   scenes: SkillFilterOption[];
   types: SkillFilterOption[];
+  runtimes: SkillFilterOption[];
+  languages: SkillFilterOption[];
+  dashboard: SkillDashboard;
+};
+
+export type SkillDashboardMetric = {
+  label: string;
+  value: string;
+  count?: number;
+};
+
+export type SkillDashboard = {
+  total: number;
+  featuredTypes: SkillDashboardMetric[];
+  hotScenes: SkillDashboardMetric[];
+  topTools: SkillDashboardMetric[];
 };
 
 export type SkillListQuery = {
@@ -116,5 +136,9 @@ export type SkillDetail = {
   sourceName?: string | null;
   originalAuthor?: string | null;
   license?: string | null;
+  runtimeLabels?: string[];
+  primaryRuntime?: string | null;
+  inferredSubtype?: string | null;
+  inferredLanguage?: string | null;
   isFavorited?: boolean;
 };

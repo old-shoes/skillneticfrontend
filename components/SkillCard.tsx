@@ -26,6 +26,7 @@ type SkillCardData = {
   sourceType?: string;
   sourceName?: string | null;
   originalAuthor?: string | null;
+  runtimeLabels?: string[];
 };
 
 type Props = {
@@ -165,10 +166,11 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
   const tone = pickTone(skill);
   const icon = pickIcon(skill);
   const tags = skill.tags;
-  const sceneTags = tags.filter((tag) => tag.type === "scene").slice(0, maxTags ?? 2);
+  const sceneTags = tags.filter((tag) => tag.type === "scene").slice(0, maxTags ?? 6);
   const typeTags = tags
     .filter((tag) => tag.type === "type" && tag.name.toLowerCase() !== skill.type?.toLowerCase())
-    .slice(0, maxTags ?? 2);
+    .slice(0, maxTags ?? 4);
+  const runtimeTags = (skill.runtimeLabels || []).filter(Boolean).slice(0, maxTags ?? 6);
   const categoryLabel = skill.categoryName?.trim() || skill.categorySlug || "未分类";
   const typeLabel = formatTypeLabel(skill.type);
   const showBookmark = Boolean(onFavorite);
@@ -229,14 +231,26 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
       <div className={`${isCompact ? "mt-2.5" : "mt-3"}`}>
         <div className="space-y-2.5">
           <div className="flex flex-wrap items-center gap-2 text-[11px]">
-            <span className="rounded-full bg-[#f4f7fb] px-2.5 py-1 font-semibold text-[#5f6779]">分类</span>
+            <span className="rounded-full bg-[#f4f7fb] px-2.5 py-1 font-semibold text-[#5f6779]">领域分类</span>
             <span className="rounded-full bg-[#f9fafb] px-2.5 py-1 font-medium text-[#1f2430]">
               {categoryLabel}
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-[11px]">
-            <span className="rounded-full bg-[#ecfaf3] px-2.5 py-1 font-semibold text-[#3fa06a]">场景</span>
+            <span className="rounded-full bg-[#f3f5ff] px-2.5 py-1 font-semibold text-[#4f46ff]">资源类型</span>
+            <span className="rounded-full bg-[#eef2ff] px-2.5 py-1 font-medium text-[#4f46ff]">{typeLabel}</span>
+            {typeTags.length > 0 ? (
+              typeTags.map((tag) => (
+                <span key={tag.id} className="rounded-full bg-[#f7f8ff] px-2.5 py-1 font-medium text-[#6570d6]">
+                  {tag.name}
+                </span>
+              ))
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="rounded-full bg-[#ecfaf3] px-2.5 py-1 font-semibold text-[#3fa06a]">全部场景</span>
             {sceneTags.length > 0 ? (
               sceneTags.map((tag) => (
                 <span key={tag.id} className="rounded-full bg-[#f3fcf7] px-2.5 py-1 font-medium text-[#3fa06a]">
@@ -249,14 +263,16 @@ export function SkillCard({ skill, variant, favoriteLabel, onOpen, onFavorite, m
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-[11px]">
-            <span className="rounded-full bg-[#f3f5ff] px-2.5 py-1 font-semibold text-[#4f46ff]">类型</span>
-            <span className="rounded-full bg-[#eef2ff] px-2.5 py-1 font-medium text-[#4f46ff]">{typeLabel}</span>
-            {typeTags.length > 0 ? (
-              typeTags.map((tag) => (
-                <span key={tag.id} className="rounded-full bg-[#f7f8ff] px-2.5 py-1 font-medium text-[#6570d6]">
-                  {tag.name}
+            <span className="rounded-full bg-[#fff4e8] px-2.5 py-1 font-semibold text-[#d97706]">适用工具</span>
+            {runtimeTags.length > 0 ? (
+              runtimeTags.map((runtime) => (
+                <span key={runtime} className="rounded-full bg-[#fff9f1] px-2.5 py-1 font-medium text-[#b45309]">
+                  {runtime}
                 </span>
               ))
+            ) : null}
+            {runtimeTags.length === 0 ? (
+              <span className="rounded-full bg-[#f9fafb] px-2.5 py-1 font-medium text-[#7b8496]">未标注</span>
             ) : null}
           </div>
         </div>
