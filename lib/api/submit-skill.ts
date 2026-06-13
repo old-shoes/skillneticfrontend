@@ -72,13 +72,21 @@ const submitSkillMetaFallback: SkillSubmissionMeta = {
     { label: "数据分析", value: "data_analysis" },
     { label: "编程开发", value: "development" },
   ],
-  modelOptions: [],
+  modelOptions: [
+    { label: "Claude Code", value: "Claude Code" },
+    { label: "Codex", value: "Codex" },
+    { label: "OpenClaw", value: "OpenClaw" },
+    { label: "Cursor", value: "Cursor" },
+    { label: "Gemini CLI", value: "Gemini CLI" },
+    { label: "Claude", value: "Claude" },
+    { label: "OpenAI", value: "OpenAI" },
+  ],
   skillTypeOptions: [
-    { label: "提示词", value: "prompt" },
-    { label: "工作流", value: "workflow" },
-    { label: "教程", value: "tutorial" },
-    { label: "工具配置", value: "tool_config" },
-    { label: "Agent", value: "agent" },
+    { label: "Prompt", value: "prompt" },
+    { label: "Workflow", value: "workflow" },
+    { label: "开发者框架", value: "tutorial" },
+    { label: "Skill", value: "tool_config" },
+    { label: "Agent 运行平台", value: "agent" },
   ],
   outputFormats: [
     { label: "标题", value: "title" },
@@ -96,11 +104,12 @@ const submitSkillMetaFallback: SkillSubmissionMeta = {
     { label: "标题", value: "title" },
     { label: "简介", value: "summary" },
     { label: "详细介绍", value: "description" },
-    { label: "分类", value: "categoryId" },
-    { label: "标签", value: "tags" },
-    { label: "Skill 类型", value: "skillType" },
+    { label: "领域分类", value: "categoryId" },
+    { label: "补充标签", value: "tags" },
+    { label: "资源类型", value: "skillType" },
+    { label: "适用工具", value: "recommendedModels" },
     { label: "预计使用时长", value: "estimatedTime" },
-    { label: "适用场景", value: "useCases" },
+    { label: "使用场景", value: "useCases" },
     { label: "Prompt 角色", value: "promptRole" },
     { label: "Prompt 模板", value: "systemPrompt" },
     { label: "封面", value: "coverImage" },
@@ -263,6 +272,14 @@ export function submitSkillForReview(id: string): Promise<SkillSubmissionDraft> 
   return request<SkillSubmissionDraft>(`/api/v1/skill-submissions/${id}/submit`, {
     method: "POST",
     body: JSON.stringify({}),
+  });
+}
+
+export function directSubmitSkill(payload: Partial<SkillSubmissionDraft>): Promise<SkillSubmissionDraft> {
+  const nextPayload = sanitizeDraftPayload(payload);
+  return request<SkillSubmissionDraft>("/api/v1/skill-submissions/direct-submit", {
+    method: "POST",
+    body: JSON.stringify(nextPayload),
   });
 }
 

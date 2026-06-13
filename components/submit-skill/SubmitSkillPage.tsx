@@ -9,6 +9,7 @@ import { ProfileLoginRequired, ProfileWorkspaceShell } from "@/components/profil
 import { trackEvent } from "@/lib/api/track";
 import {
   createSubmitSkillDraft,
+  directSubmitSkill,
   getSubmitSkillDraft,
   parseUserGithubSkill,
   submitSkillForReview,
@@ -34,17 +35,67 @@ type Props = {
 type PromptInputMode = "manual" | "markdown";
 
 const steps: SubmitSkillStep[] = ["basic", "prompt"];
-const coverOptions = [
-  "/icons/tutorials/cover-chatgpt-prompt.svg",
-  "/icons/tutorials/cover-midjourney-guide.svg",
-  "/icons/tutorials/cover-workflow-guide.svg",
-  "/icons/tutorials/cover-excel-ai.svg",
-  "/icons/tutorials/cover-xiaohongshu-writing.svg",
-  "/icons/tutorials/cover-python-ai.svg",
-];
 const PROMPT_MIN_LENGTH = 20;
 const PROMPT_MAX_LENGTH = 50000;
-const CUSTOM_PROMPT_ROLE_VALUE = "自定义角色";
+const TAXONOMY_HINTS: Record<
+  SkillSubmissionDraft["skillType"],
+  {
+    categories: string[];
+    scenes: string[];
+    tools: string[];
+  }
+> = {
+  prompt: {
+    categories: ["办公效率", "知识管理", "产品管理", "上下文工程", "软件工程", "编码工作流"],
+    scenes: ["内容", "知识", "文档", "需求", "分析", "写作", "规划"],
+    tools: ["Claude", "OpenAI", "Codex", "Claude Code", "Cursor", "Gemini"],
+  },
+  workflow: {
+    categories: ["自动化", "流程", "办公效率", "企业协作", "编码工作流", "软件工程", "Agent平台"],
+    scenes: ["流程编排", "协作编排", "自动执行", "测试验证", "gitops", "方案设计", "需求分析"],
+    tools: ["Claude Code", "Codex", "Cursor", "OpenCode", "GitHub Copilot", "Gemini CLI"],
+  },
+  tool_config: {
+    categories: ["Skill生态", "专家代理", "知识管理", "办公效率", "浏览器自动化", "产品管理", "软件工程"],
+    scenes: ["工具调用", "浏览器", "知识问答", "文档协作", "消息协作", "支付管理"],
+    tools: ["Claude Code", "Codex", "Cursor", "OpenClaw", "OpenCode", "Gemini CLI"],
+  },
+  agent: {
+    categories: ["Agent平台", "Agent运行时", "多智能体", "自治研究", "自动化", "记忆系统", "企业协作", "RAG"],
+    scenes: ["agent", "自动执行", "研究自动化", "记忆管理", "外部接入", "协作编排", "模型接入"],
+    tools: ["OpenClaw", "Claude Code", "Codex", "Cursor", "OpenAI", "Gemini CLI", "OpenRouter"],
+  },
+  tutorial: {
+    categories: ["Agent框架", "软件工程", "RAG", "编码工作流", "UI/UX", "上下文工程"],
+    scenes: ["agent开发", "研究自动化", "接口设计", "代码生成", "测试验证", "文献检索"],
+    tools: ["LangGraph", "LangSmith", "OpenAI", "Claude", "Codex", "Cursor", "Gemini CLI"],
+  },
+};
+
+function normalizeTaxonomyText(value: string) {
+  return value.toLowerCase().replace(/\s+/g, "").replace(/[-_/]/g, "");
+}
+
+function matchesTaxonomyHints(value: string, hints: string[]) {
+  const normalized = normalizeTaxonomyText(value);
+  return hints.some((hint) => normalized.includes(normalizeTaxonomyText(hint)));
+}
+
+function filterTaxonomyOptions<T extends { label: string; value: string }>(
+  options: T[],
+  hints: string[],
+  selectedValues: string[],
+) {
+  if (!hints.length) {
+    return options;
+  }
+  const selected = new Set(selectedValues);
+  const filtered = options.filter((item) => {
+    const haystack = `${item.label} ${item.value}`;
+    return selected.has(item.value) || matchesTaxonomyHints(haystack, hints);
+  });
+  return filtered.length > 0 ? filtered : options;
+}
 
 function getLeafCategories(meta: SkillSubmissionMeta) {
   const treeLeaves = (meta.categoryTree || []).flatMap((parent) =>
@@ -67,20 +118,19 @@ function getLeafCategories(meta: SkillSubmissionMeta) {
 }
 
 function createEmptyDraft(meta: SkillSubmissionMeta): SkillSubmissionDraft {
-  const leafCategories = getLeafCategories(meta);
   return {
     title: "",
     summary: "",
     description: "",
-    categoryId: leafCategories[0]?.id || "",
-    categoryIds: leafCategories[0]?.id ? [leafCategories[0].id] : [],
-    categoryName: leafCategories[0]?.name || "",
+    categoryId: "",
+    categoryIds: [],
+    categoryName: "",
     tags: [],
     skillType: "prompt",
     recommendedModels: [],
     difficulty: "beginner",
     estimatedTime: "",
-    coverImage: coverOptions[0],
+    coverImage: null,
     useCases: [],
     promptRole: meta.promptRoles[0] || "",
     promptFileName: null,
@@ -105,22 +155,6 @@ function isSameList(left: string[], right: string[]): boolean {
 
 function getStepFromQuery(value: string | null): SubmitSkillStep {
   return value && steps.includes(value as SubmitSkillStep) ? (value as SubmitSkillStep) : "basic";
-}
-
-function getPromptRoleLabel(locale: Locale, value: string) {
-  const labels: Record<string, { zh: string; en: string }> = {
-    内容创作助手: { zh: "内容创作助手", en: "Content Writer" },
-    营销文案专家: { zh: "营销文案专家", en: "Marketing Copywriter" },
-    小红书运营: { zh: "小红书运营", en: "Xiaohongshu Operator" },
-    品牌种草专家: { zh: "品牌种草专家", en: "Brand Growth Specialist" },
-    文案校对大师: { zh: "文案校对大师", en: "Copy Editor" },
-    自定义角色: { zh: "自定义角色", en: "Custom Role" },
-  };
-  return labels[value]?.[locale] || value;
-}
-
-function isCustomPromptRoleValue(value: string, promptRoles: string[]) {
-  return Boolean(value.trim()) && !promptRoles.includes(value);
 }
 
 function getUseCaseLabel(locale: Locale, value: string, options: SkillSubmissionMeta["useCaseOptions"]) {
@@ -158,12 +192,20 @@ function getCopy(locale: Locale) {
       page: {
         eyebrow: "Submit Skill",
         title: "Submit Your Skill",
-        description: "Share your AI workflow and prompt. This MVP only keeps basic info and prompt setup.",
+        description: "Choose whether to submit a prompt or import from a GitHub repository. This MVP only keeps basic info and prompt setup.",
+      },
+      mode: {
+        title: "Choose Submission Type",
+        description: "Pick the source first, then continue with the matching workflow.",
+        promptTitle: "Prompt",
+        promptDescription: "Fill in the title, summary, and prompt content directly.",
+        githubTitle: "Git Repo Import",
+        githubDescription: "Parse a GitHub repository and auto-fill the basic Skill information.",
       },
       auth: {
         checking: "Checking login status...",
         needLoginTitle: "Log in to submit your Skill",
-        needLoginDescription: "Draft saving, review submission, and later edits require a real account session.",
+        needLoginDescription: "Review submission and later edits require a real account session.",
         login: "Log in",
         register: "Create account",
       },
@@ -200,22 +242,22 @@ function getCopy(locale: Locale) {
         titleRule: "2-50 chars",
         summary: "One-line Summary",
         summaryPlaceholder: "Summarize the main problem this Skill solves",
-        summaryRule: "Manual: 10-80 chars, GitHub import not limited",
-        category: "Category",
-        tags: "Tags",
+        summaryRule: "Prompt: 10-80 chars, GitHub import not limited",
+        category: "Domain Category",
+        tags: "Additional Tags",
         tagsPlaceholder: "Separate with commas, for example: copywriting, marketing, social media",
-        tagsRule: "1-8 tags",
+        tagsRule: "Required, 1-8 tags",
         coverPreset: "Preset Cover",
         description: "Detailed Description",
         descriptionPlaceholder: "Explain the use case, expected output, and value of this Skill",
-        descriptionRule: "Manual: 20-500 chars, GitHub: up to 5000 chars",
-        useCases: "Use Cases",
-        useCasesPlaceholder: "Select applicable scenarios",
+      descriptionRule: "Optional.",
+        useCases: "Scenes",
+        useCasesPlaceholder: "Select usage scenes",
         useCasesRule: "Select at least 1",
-        skillType: "Skill Type",
-        skillTypePlaceholder: "Select skill type",
-        recommendedModels: "Recommended Models",
-        recommendedModelsPlaceholder: "Select recommended models",
+        skillType: "Resource Type",
+        skillTypePlaceholder: "Select resource type",
+        recommendedModels: "Applicable Tools",
+        recommendedModelsPlaceholder: "Select applicable tools",
         githubPromptHint: "Prompt files stay in the GitHub repository. After submission, go to the repo to view or download them.",
       },
       prompt: {
@@ -223,8 +265,8 @@ function getCopy(locale: Locale) {
         customRole: "Custom Role Name",
         customRolePlaceholder: "Enter your custom prompt role",
         source: "Prompt Input Method",
-        sourceHint: "Choose one: type the prompt manually or upload a Markdown file",
-        sourceManual: "Manual Input",
+        sourceHint: "Choose one: type the prompt directly or upload a Markdown file",
+        sourceManual: "Direct Input",
         sourceMarkdown: "Upload Markdown",
         uploadMd: "Upload Markdown",
         uploadMdHint: "Upload a .md file to fill the prompt template automatically",
@@ -245,15 +287,15 @@ function getCopy(locale: Locale) {
       coverPlaceholder: "Cover Preview",
       defaultSummary: "Your one-line summary will appear here.",
       promptPlaceholder: "Prompt preview will appear here.",
-      useCases: "Use Cases",
-      skillType: "Skill Type",
-      recommendedModels: "Recommended Models",
+      useCases: "Scenes",
+      skillType: "Resource Type",
+      recommendedModels: "Applicable Tools",
       empty: "To be filled",
       tipsTitle: "Submission Tips",
         tips: [
-          "Keep the title, summary, and prompt aligned.",
-          "This flow currently uses preset covers only.",
-          "After submission, the item enters the admin review workflow and will become a formal Skill after approval.",
+          "Add 1-8 additional tags so reviewers can understand the prompt faster.",
+          "Use a clear title and keep the prompt content complete before submitting.",
+          "After submission, the item enters review and will become a formal Skill after approval.",
         ],
       },
       errors: {
@@ -277,12 +319,20 @@ function getCopy(locale: Locale) {
       page: {
         eyebrow: "提交 Skill",
         title: "提交你的 Skill",
-      description: "分享你的 AI 创意与经验，帮助更多人提升效率。当前只保留基础信息和 Prompt 配置。",
+      description: "先选择提交提示词，还是从 Git 仓库导入，再进入对应的提交流程。当前只保留基础信息和 Prompt 配置。",
+      },
+      mode: {
+        title: "选择提交方式",
+        description: "先确定来源，再填写对应内容。",
+        promptTitle: "提示词",
+        promptDescription: "直接填写标题、简介和 Prompt 内容，适合独立提交 Prompt Skill。",
+        githubTitle: "Git 仓库导入",
+        githubDescription: "解析 GitHub 仓库并自动带入基础信息，适合从开源仓库提交 Skill。",
       },
       auth: {
         checking: "正在检查登录状态...",
         needLoginTitle: "登录后才能提交 Skill",
-        needLoginDescription: "保存草稿、提交审核和后续修改都需要真实登录账号。",
+        needLoginDescription: "提交审核和后续修改都需要真实登录账号。",
         login: "登录",
         register: "注册账号",
       },
@@ -319,22 +369,22 @@ function getCopy(locale: Locale) {
       titleRule: "2-50 字",
       summary: "一句话简介",
       summaryPlaceholder: "概括这个 Skill 能解决什么问题",
-      summaryRule: "手动填写 10-80 字，GitHub 导入不作限制",
-      category: "分类",
-      tags: "标签",
+      summaryRule: "提示词 10-80 字，GitHub 导入不作限制",
+      category: "领域分类",
+      tags: "补充标签",
       tagsPlaceholder: "用逗号分隔，如：小红书, 文案, 营销",
-      tagsRule: "1-8 个标签",
+      tagsRule: "必填，1-8 个",
       coverPreset: "预设封面",
       description: "详细介绍",
       descriptionPlaceholder: "介绍这个 Skill 的适用方式、产出效果和价值",
-      descriptionRule: "手动填写 20-500 字，GitHub 导入最多 5000 字",
-      useCases: "适用场景",
-      useCasesPlaceholder: "选择适用场景",
+      descriptionRule: "可选填写。",
+      useCases: "使用场景",
+      useCasesPlaceholder: "选择使用场景",
       useCasesRule: "至少选择 1 个",
-      skillType: "Skill 类型",
-      skillTypePlaceholder: "选择 Skill 类型",
-      recommendedModels: "推荐模型",
-      recommendedModelsPlaceholder: "选择推荐模型",
+      skillType: "资源类型",
+      skillTypePlaceholder: "选择资源类型",
+      recommendedModels: "适用工具",
+      recommendedModelsPlaceholder: "选择适用工具",
       githubPromptHint: "Prompt 原文件保留在 GitHub 仓库中，提交后请直接去仓库查看或下载。",
     },
     prompt: {
@@ -342,8 +392,8 @@ function getCopy(locale: Locale) {
       customRole: "自定义角色名称",
       customRolePlaceholder: "输入你自己的 Prompt 角色名称",
       source: "Prompt 输入方式",
-      sourceHint: "二选一：手动填写系统 Prompt，或上传 Markdown 文件",
-      sourceManual: "手动填写",
+      sourceHint: "二选一：直接填写系统 Prompt，或上传 Markdown 文件",
+      sourceManual: "直接填写",
       sourceMarkdown: "上传 Markdown",
       uploadMd: "上传 Markdown",
       uploadMdHint: "支持选择 .md 文件，自动填充到 Prompt 模板里",
@@ -364,15 +414,15 @@ function getCopy(locale: Locale) {
       coverPlaceholder: "封面预览",
       defaultSummary: "这里会展示一句话简介。",
       promptPlaceholder: "Prompt 预览将在这里显示",
-      useCases: "适用场景",
-      skillType: "Skill 类型",
-      recommendedModels: "推荐模型",
+      useCases: "使用场景",
+      skillType: "资源类型",
+      recommendedModels: "适用工具",
       empty: "待填写",
       tipsTitle: "提交提醒",
       tips: [
-        "尽量让标题、简介与 Prompt 保持一致。",
-        "现在已经支持真实封面上传，保留预设封面作为兜底选项。",
-        "提交后会进入后台审核页，审核通过后转为正式 Skill。",
+        "补充标签需要填写 1-8 个，方便审核和后续归档。",
+        "提交前确认标题清晰、Prompt 内容完整可用。",
+        "提交后会进入审核流程，审核通过后转为正式 Skill。",
       ],
     },
     errors: {
@@ -440,8 +490,9 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
   const searchParams = useSearchParams();
   const text = getCopy(locale);
   const step = getStepFromQuery(searchParams.get("step"));
-  const submissionId = searchParams.get("id") || "";
+  const querySubmissionId = searchParams.get("id") || "";
   const [draft, setDraft] = useState<SkillSubmissionDraft>(() => createEmptyDraft(meta));
+  const [draftId, setDraftId] = useState(querySubmissionId);
   const [mode, setMode] = useState<SubmitSkillMode>("manual");
   const [githubUrlInput, setGithubUrlInput] = useState("");
   const [githubParsed, setGithubParsed] = useState<UserGithubSkillParseResult | null>(null);
@@ -458,6 +509,14 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
   const [promptInputMode, setPromptInputMode] = useState<PromptInputMode>("manual");
   const leafCategories = useMemo(() => getLeafCategories(meta), [meta]);
   const emptyDraft = useMemo(() => createEmptyDraft(meta), [meta]);
+
+  useEffect(() => {
+    setDraftId(querySubmissionId);
+  }, [querySubmissionId]);
+
+  useEffect(() => {
+    router.prefetch(withLocale(locale, "/me/submit-success"));
+  }, [locale, router]);
 
   useEffect(() => {
     let active = true;
@@ -505,9 +564,9 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
   ) {
     trackEvent({
       eventName,
-      pageUrl: withLocale(locale, `/me/submit?step=${step}${submissionId ? `&id=${submissionId}` : ""}`),
+      pageUrl: withLocale(locale, `/me/submit?step=${step}${draftId ? `&id=${draftId}` : ""}`),
       targetType: "skill_submission",
-      targetId: submissionId || draft.id || null,
+      targetId: draftId || draft.id || null,
       extra: {
         step,
         status: draft.status,
@@ -524,7 +583,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
       return;
     }
 
-    if (!submissionId) {
+    if (!draftId) {
       setLoadingDraft(false);
       return;
     }
@@ -532,7 +591,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
     setLoadingDraft(true);
     setError(null);
     setSuccessMessage(null);
-    getSubmitSkillDraft(submissionId)
+    getSubmitSkillDraft(draftId)
       .then((data) => {
         if (!active) {
           return;
@@ -569,6 +628,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
                   difficulty: data.difficulty,
                   tags: data.tags || [],
                   use_cases: data.useCases || [],
+                  models: data.recommendedModels || [],
                   prompt_role: data.promptRole || null,
                   system_prompt: data.systemPrompt || "",
                 },
@@ -603,7 +663,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
     return () => {
       active = false;
     };
-  }, [authReady, authed, meta.useCaseOptions, submissionId, text.errors.loadDraft]);
+  }, [authReady, authed, draftId, meta.useCaseOptions, text.errors.loadDraft]);
 
   useEffect(() => {
     trackSubmitEvent("submit_skill_page_view");
@@ -624,13 +684,48 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
   }, [draft.promptFileName]);
 
   const currentCategory = useMemo(
-    () => leafCategories.find((item) => item.id === draft.categoryId) || leafCategories[0] || null,
+    () => leafCategories.find((item) => item.id === draft.categoryId) || null,
     [draft.categoryId, leafCategories],
   );
-  const usingCustomPromptRole = useMemo(
-    () => isCustomPromptRoleValue(draft.promptRole, meta.promptRoles),
-    [draft.promptRole, meta.promptRoles],
-  );
+  const activeSkillType = mode === "manual" ? null : draft.skillType;
+  const taxonomyHints = activeSkillType ? TAXONOMY_HINTS[activeSkillType] : null;
+  const categoryOptions = useMemo(() => {
+    const options = leafCategories.map((item) => ({ label: item.displayName, value: item.id }));
+    if (!taxonomyHints) {
+      return options;
+    }
+    const selectedValues = draft.categoryIds;
+    const selectedNameMap = new Map(leafCategories.map((item) => [item.id, `${item.displayName} ${item.name} ${item.slug}`]));
+    return filterTaxonomyOptions(
+      options,
+      taxonomyHints.categories,
+      selectedValues.filter(Boolean),
+    ).sort((left, right) => {
+      const leftSelected = selectedValues.includes(left.value);
+      const rightSelected = selectedValues.includes(right.value);
+      if (leftSelected !== rightSelected) {
+        return leftSelected ? -1 : 1;
+      }
+      const leftRecommended = matchesTaxonomyHints(selectedNameMap.get(left.value) || left.label, taxonomyHints.categories);
+      const rightRecommended = matchesTaxonomyHints(selectedNameMap.get(right.value) || right.label, taxonomyHints.categories);
+      if (leftRecommended !== rightRecommended) {
+        return leftRecommended ? -1 : 1;
+      }
+      return left.label.localeCompare(right.label, locale === "en" ? "en" : "zh");
+    });
+  }, [draft.categoryIds, leafCategories, locale, taxonomyHints]);
+  const useCaseOptions = useMemo(() => {
+    if (!taxonomyHints) {
+      return meta.useCaseOptions;
+    }
+    return filterTaxonomyOptions(meta.useCaseOptions, taxonomyHints.scenes, draft.useCases);
+  }, [draft.useCases, meta.useCaseOptions, taxonomyHints]);
+  const recommendedModelOptions = useMemo(() => {
+    if (!taxonomyHints) {
+      return meta.modelOptions;
+    }
+    return filterTaxonomyOptions(meta.modelOptions, taxonomyHints.tools, draft.recommendedModels);
+  }, [draft.recommendedModels, meta.modelOptions, taxonomyHints]);
 
   const statusPill = useMemo(() => text.status[draft.status], [draft.status, text.status]);
   const basicStepError = useMemo(() => validateStep("basic"), [draft, locale, text.errors.promptInvalid, promptInputMode]);
@@ -646,10 +741,19 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
   }, [currentCategory, draft.categoryName]);
 
   useEffect(() => {
-    if (mode === "github" && step === "prompt") {
+    if ((mode === "github" || mode === "manual") && step === "prompt") {
       updateQuery("basic");
     }
   }, [mode, step]);
+
+  useEffect(() => {
+    if (mode === "manual" && draft.skillType !== "prompt") {
+      setDraft((previous) => ({
+        ...previous,
+        skillType: "prompt",
+      }));
+    }
+  }, [draft.skillType, mode]);
 
   function updateQuery(nextStep: SubmitSkillStep, nextId?: string) {
     if (nextStep === "prompt") {
@@ -662,10 +766,25 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
     }
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", nextStep);
-    if (nextId || submissionId) {
-      params.set("id", nextId || submissionId);
+    if (nextId || draftId) {
+      params.set("id", nextId || draftId);
+    } else {
+      params.delete("id");
     }
     router.push(withLocale(locale, `/me/submit?${params.toString()}`), { scroll: true });
+  }
+
+  function replaceDraftIdInUrl(nextId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("step", step);
+    if (nextId) {
+      params.set("id", nextId);
+    } else {
+      params.delete("id");
+    }
+    const query = params.toString();
+    const nextUrl = withLocale(locale, `/me/submit${query ? `?${query}` : ""}`);
+    window.history.replaceState(window.history.state, "", nextUrl);
   }
 
   function switchMode(nextMode: SubmitSkillMode) {
@@ -679,6 +798,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
     setGithubParsed(null);
     setTagsInput("");
     setPromptInputMode("manual");
+    setDraftId("");
     setError(null);
     setSuccessMessage(null);
 
@@ -688,34 +808,45 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
     router.push(withLocale(locale, `/me/submit?${params.toString()}`), { scroll: true });
   }
 
-  async function ensureDraftId(nextDraft?: Partial<SkillSubmissionDraft>) {
-    if (submissionId) {
-      return submissionId;
+  async function ensureDraftId(nextDraft?: Partial<SkillSubmissionDraft>, options?: { syncUrl?: boolean }) {
+    if (draftId) {
+      return draftId;
     }
     const created = await createSubmitSkillDraft({
       title: nextDraft?.title || draft.title,
-      summary: nextDraft?.summary || draft.summary,
+      summary: nextDraft?.summary || draft.summary || (nextDraft?.title || draft.title),
     });
     const newId = created.id || "";
+    setDraftId(newId);
     setDraft((previous) => ({
       ...previous,
       ...created,
     }));
-    updateQuery(step, newId);
+    if (newId && options?.syncUrl !== false) {
+      replaceDraftIdInUrl(newId);
+    }
     return newId;
   }
 
-  async function saveDraft(partial?: Partial<SkillSubmissionDraft>, options?: { track?: boolean }) {
+  async function saveDraft(partial?: Partial<SkillSubmissionDraft>, options?: { track?: boolean; syncUrl?: boolean }) {
     setSaving(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      const merged = {
+      const mergedBase = {
         ...draft,
         ...partial,
         useCases: normalizeUseCases((partial?.useCases || draft.useCases) as string[], meta.useCaseOptions),
       };
-      const id = await ensureDraftId(merged);
+      const merged = mode === "manual"
+        ? {
+            ...mergedBase,
+            summary: mergedBase.summary?.trim() || mergedBase.title,
+            description: mergedBase.description?.trim() || mergedBase.systemPrompt?.trim() || mergedBase.title,
+            promptRole: mergedBase.promptRole?.trim() || mergedBase.title,
+          }
+        : mergedBase;
+      const id = await ensureDraftId(merged, { syncUrl: options?.syncUrl });
       const saved = await updateSubmitSkillDraft(id, merged);
       setDraft((previous) => ({
         ...previous,
@@ -754,12 +885,9 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
       setError(validationError);
       return;
     }
-    if (mode === "github") {
+    if (mode === "github" || mode === "manual") {
       await submitForReview();
       return;
-    }
-    if (mode === "manual") {
-      await saveDraft();
     }
     if (step === "basic") {
       trackSubmitEvent("submit_skill_next_step_click", {
@@ -775,6 +903,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
     setSubmitting(true);
     setError(null);
     setSuccessMessage(null);
+    let shouldResetSubmitting = true;
     try {
       if (mode === "github") {
         const result = await submitUserGithubSkill({
@@ -787,17 +916,41 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
           difficulty: draft.difficulty,
           tags: draft.tags,
           use_cases: draft.useCases,
+          recommended_models: draft.recommendedModels,
           usage_guide: "",
           example_output: draft.systemPrompt || "",
           cover_url: draft.coverImage || undefined,
           attachment_urls: draft.attachmentUrls || [],
         });
         setSuccessMessage(locale === "en" ? "GitHub Skill submitted successfully." : "GitHub Skill 提交成功。");
+        shouldResetSubmitting = false;
         router.push(withLocale(locale, `/me/submit-success?id=${result.submission_id}`), { scroll: true });
         return;
       }
-      const saved = await saveDraft();
-      const id = saved.id || submissionId;
+      if (!draftId) {
+        trackSubmitEvent("submit_skill_submit_review", {
+          savedId: null,
+        });
+        const result = await directSubmitSkill({
+          ...draft,
+          summary: draft.summary?.trim() || draft.title,
+          description: draft.description?.trim() || draft.systemPrompt?.trim() || draft.title,
+          promptRole: draft.promptRole?.trim() || draft.title,
+          submitNote: undefined,
+        });
+        setDraft((previous) => ({
+          ...previous,
+          ...result,
+        }));
+        trackSubmitEvent("submit_skill_submit_success", {
+          savedId: result.id,
+        });
+        shouldResetSubmitting = false;
+        router.push(withLocale(locale, `/me/submit-success?id=${result.id}`), { scroll: true });
+        return;
+      }
+      const saved = await saveDraft(undefined, { syncUrl: false });
+      const id = saved.id || draftId;
       if (!id) {
         throw new Error(text.errors.draftIdMissing);
       }
@@ -812,6 +965,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
       trackSubmitEvent("submit_skill_submit_success", {
         savedId: id,
       });
+      shouldResetSubmitting = false;
       router.push(withLocale(locale, `/me/submit-success?id=${id}`), { scroll: true });
     } catch (err) {
       trackSubmitEvent("submit_skill_submit_failed", {
@@ -819,7 +973,9 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
       });
       setError(err instanceof Error ? err.message : text.errors.submitReview);
     } finally {
-      setSubmitting(false);
+      if (shouldResetSubmitting) {
+        setSubmitting(false);
+      }
     }
   }
 
@@ -847,6 +1003,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
         categoryName: matchedCategory?.name || previous.categoryName,
         tags: parsed.parsed.tags?.length ? parsed.parsed.tags : previous.tags,
         useCases: parsed.parsed.use_cases?.length ? parsed.parsed.use_cases : previous.useCases,
+        recommendedModels: parsed.parsed.models?.length ? parsed.parsed.models : previous.recommendedModels,
         skillType: (parsed.parsed.skill_type as SkillSubmissionDraft["skillType"]) || previous.skillType,
         difficulty: parsed.parsed.difficulty || previous.difficulty,
         promptRole: parsed.parsed.prompt_role || previous.promptRole,
@@ -909,21 +1066,30 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
     if (targetStep === "basic") {
       const titleLength = draft.title.trim().length;
       const summaryLength = draft.summary.trim().length;
-      const descriptionLength = draft.description.trim().length;
+      const promptLength = draft.systemPrompt.trim().length;
       if (titleLength < 2 || titleLength > 50) return locale === "en" ? "Skill Title must be 2-50 characters." : "Skill 标题需填写 2-50 字。";
-      if (mode === "manual" && (summaryLength < 10 || summaryLength > 80)) {
-        return locale === "en" ? "One-line Summary must be 10-80 characters." : "一句话简介需填写 10-80 字。";
-      }
       if (mode === "github" && summaryLength < 1) {
         return locale === "en" ? "One-line Summary is required." : "一句话简介不能为空。";
       }
-      if (!draft.categoryIds.length && !draft.categoryId) return locale === "en" ? "Please select a Category." : "请选择分类。";
-      if (draft.tags.length < 1 || draft.tags.length > 8) return locale === "en" ? "Tags must contain 1-8 items." : "标签需填写 1-8 个。";
-      if (!draft.skillType) return locale === "en" ? "Please select a Skill Type." : "请选择 Skill 类型。";
-      if (mode === "manual" && descriptionLength > 0 && (descriptionLength < 20 || descriptionLength > 500)) {
-        return locale === "en" ? "Detailed Description must be 20-500 characters." : "详细介绍填写后需为 20-500 字。";
+      if (draft.tags.length < 1 || draft.tags.length > 8) {
+        return locale === "en" ? "Additional Tags must contain 1-8 items." : "补充标签需填写 1-8 个。";
       }
-      if (draft.useCases.length < 1) return locale === "en" ? "Please select at least 1 Use Case." : "请至少选择 1 个适用场景。";
+      if (!draft.skillType) return locale === "en" ? "Please select a Resource Type." : "请选择资源类型。";
+      if (mode === "github" && !draft.categoryIds.length && !draft.categoryId) {
+        return locale === "en" ? "Please select a Domain Category." : "请选择领域分类。";
+      }
+      if (mode === "github" && draft.useCases.length < 1) {
+        return locale === "en" ? "Please select at least 1 Scene." : "请至少选择 1 个使用场景。";
+      }
+      if (mode === "github" && draft.recommendedModels.length < 1) {
+        return locale === "en" ? "Please select at least 1 Applicable Tool." : "请至少选择 1 个适用工具。";
+      }
+      const hasMarkdown = Boolean(draft.promptFileName?.trim());
+      const markdownValid = hasMarkdown && promptLength >= PROMPT_MIN_LENGTH && promptLength <= PROMPT_MAX_LENGTH;
+      const manualValid = promptLength >= PROMPT_MIN_LENGTH && promptLength <= PROMPT_MAX_LENGTH;
+      if (mode === "manual" && (promptInputMode === "markdown" ? !markdownValid : !manualValid)) {
+        return text.errors.promptInvalid;
+      }
     }
 
     if (targetStep === "prompt") {
@@ -931,10 +1097,7 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
       const hasMarkdown = Boolean(draft.promptFileName?.trim());
       const markdownValid = hasMarkdown && promptLength >= PROMPT_MIN_LENGTH && promptLength <= PROMPT_MAX_LENGTH;
       const manualValid = promptLength >= PROMPT_MIN_LENGTH && promptLength <= PROMPT_MAX_LENGTH;
-      if (
-        !draft.promptRole.trim() ||
-        (promptInputMode === "markdown" ? !markdownValid : !manualValid)
-      ) {
+      if (promptInputMode === "markdown" ? !markdownValid : !manualValid) {
         return text.errors.promptInvalid;
       }
     }
@@ -994,36 +1157,76 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
             placeholder={text.basic.titlePlaceholder}
           />
         </Field>
-        <Field label={text.basic.summary} hint={text.basic.summaryRule} required>
-          <TextAreaField
-            value={draft.summary}
-            onChange={(event) => setField("summary", event.target.value)}
-            placeholder={text.basic.summaryPlaceholder}
-            rows={2}
-          />
-        </Field>
-        <Field label={text.basic.category} required>
-          <HeroMultiSelect
-            ariaLabel={text.basic.category}
-            values={draft.categoryIds}
-            onChange={(values) => {
-              const primaryId = values[0] || "";
-              const category = leafCategories.find((item) => item.id === primaryId);
-              setDraft((previous) => ({
-                ...previous,
-                categoryIds: values,
-                categoryId: primaryId,
-                categoryName: category?.name || "",
-              }));
-            }}
-            options={leafCategories.map((item) => ({ label: item.displayName, value: item.id }))}
-            placeholder={locale === "en" ? "Select categories, first one is primary" : "选择分类，首个为主分类"}
-            className="w-full"
-            triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
-            popoverClassName="min-w-[260px]"
-          />
-        </Field>
-        <Field label={text.basic.tags} hint={text.basic.tagsRule} required>
+        {mode === "manual" ? (
+          <Field label={text.basic.skillType} required>
+            <div className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-medium text-slate-700">
+              {meta.skillTypeOptions.find((item) => item.value === "prompt")?.label || "Prompt"}
+            </div>
+          </Field>
+        ) : (
+          <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-4 md:p-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={text.basic.skillType} required>
+                <HeroSelect
+                  ariaLabel={text.basic.skillType}
+                  value={draft.skillType}
+                  onChange={(value) => setField("skillType", value as SkillSubmissionDraft["skillType"])}
+                  options={meta.skillTypeOptions}
+                  placeholder={text.basic.skillTypePlaceholder}
+                  className="w-full"
+                  triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
+                  popoverClassName="min-w-[220px]"
+                />
+              </Field>
+              <Field label={text.basic.category} required>
+                <HeroMultiSelect
+                  ariaLabel={text.basic.category}
+                  values={draft.categoryIds}
+                  onChange={(values) => {
+                    const primaryId = values[0] || "";
+                    const category = leafCategories.find((item) => item.id === primaryId);
+                    setDraft((previous) => ({
+                      ...previous,
+                      categoryIds: values,
+                      categoryId: primaryId,
+                      categoryName: category?.name || "",
+                    }));
+                  }}
+                  options={categoryOptions}
+                  placeholder={locale === "en" ? "Select domains, first one is primary" : "选择领域分类，首个为主分类"}
+                  className="w-full"
+                  triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
+                  popoverClassName="min-w-[260px]"
+                />
+              </Field>
+              <Field label={text.basic.useCases} hint={text.basic.useCasesRule} required>
+                <HeroMultiSelect
+                  ariaLabel={text.basic.useCases}
+                  values={draft.useCases}
+                  onChange={(values) => setField("useCases", normalizeUseCases(values, meta.useCaseOptions))}
+                  options={useCaseOptions}
+                  placeholder={text.basic.useCasesPlaceholder}
+                  className="w-full"
+                  triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
+                  popoverClassName="min-w-[260px]"
+                />
+              </Field>
+              <Field label={text.basic.recommendedModels} required>
+                <HeroMultiSelect
+                  ariaLabel={text.basic.recommendedModels}
+                  values={draft.recommendedModels}
+                  onChange={(values) => setField("recommendedModels", values)}
+                  options={recommendedModelOptions}
+                  placeholder={text.basic.recommendedModelsPlaceholder}
+                  className="w-full"
+                  triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
+                  popoverClassName="min-w-[260px]"
+                />
+              </Field>
+            </div>
+          </div>
+        )}
+        <Field label={text.basic.tags} hint={text.basic.tagsRule}>
           <InputField
             value={tagsInput}
             onChange={(event) => {
@@ -1041,52 +1244,17 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
             placeholder={text.basic.tagsPlaceholder}
           />
         </Field>
-        <Field label={text.basic.skillType} required>
-          <HeroSelect
-            ariaLabel={text.basic.skillType}
-            value={draft.skillType}
-            onChange={(value) => setField("skillType", value as SkillSubmissionDraft["skillType"])}
-            options={meta.skillTypeOptions}
-            placeholder={text.basic.skillTypePlaceholder}
-            className="w-full"
-            triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
-            popoverClassName="min-w-[220px]"
-          />
-        </Field>
-        <Field label={text.basic.coverPreset}>
-          <HeroSelect
-            ariaLabel={text.basic.coverPreset}
-            value={draft.coverImage || ""}
-            onChange={(value) => setField("coverImage", value)}
-            options={coverOptions.map((item) => ({
-              label: item.split("/").pop() || item,
-              value: item,
-            }))}
-            className="w-full"
-            triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
-            popoverClassName="min-w-[220px]"
-          />
-        </Field>
-        <Field label={text.basic.description} hint={text.basic.descriptionRule}>
-          <TextAreaField
-            value={draft.description}
-            onChange={(event) => setField("description", event.target.value)}
-            placeholder={text.basic.descriptionPlaceholder}
-            rows={5}
-          />
-        </Field>
-        <Field label={text.basic.useCases} hint={text.basic.useCasesRule} required>
-          <HeroMultiSelect
-            ariaLabel={text.basic.useCases}
-            values={draft.useCases}
-            onChange={(values) => setField("useCases", normalizeUseCases(values, meta.useCaseOptions))}
-            options={meta.useCaseOptions}
-            placeholder={text.basic.useCasesPlaceholder}
-            className="w-full"
-            triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
-            popoverClassName="min-w-[260px]"
-          />
-        </Field>
+        {mode === "manual" ? renderPromptStep() : null}
+        {mode === "github" ? (
+          <Field label={text.basic.description} hint={text.basic.descriptionRule}>
+            <TextAreaField
+              value={draft.description}
+              onChange={(event) => setField("description", event.target.value)}
+              placeholder={text.basic.descriptionPlaceholder}
+              rows={5}
+            />
+          </Field>
+        ) : null}
       </div>
     );
   }
@@ -1094,35 +1262,6 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
   function renderPromptStep() {
     return (
       <div className="space-y-5">
-        <Field label={text.prompt.role} required>
-          <HeroSelect
-            ariaLabel={text.prompt.role}
-            value={usingCustomPromptRole ? CUSTOM_PROMPT_ROLE_VALUE : draft.promptRole}
-            onChange={(value) => {
-              if (value === CUSTOM_PROMPT_ROLE_VALUE) {
-                setField("promptRole", usingCustomPromptRole ? draft.promptRole : "");
-                return;
-              }
-              setField("promptRole", value);
-            }}
-            options={meta.promptRoles.map((item) => ({
-              label: getPromptRoleLabel(locale, item),
-              value: item,
-            }))}
-            className="w-full"
-            triggerClassName="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition data-[focus-visible=true]:border-brand-500 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-brand-100"
-            popoverClassName="min-w-[240px]"
-          />
-        </Field>
-        {usingCustomPromptRole || draft.promptRole === "" ? (
-          <Field label={text.prompt.customRole} required>
-            <InputField
-              value={draft.promptRole}
-              onChange={(event) => setField("promptRole", event.target.value)}
-              placeholder={text.prompt.customRolePlaceholder}
-            />
-          </Field>
-        ) : null}
         <Field label={text.prompt.source} hint={text.prompt.sourceHint} required>
           <div className="grid gap-3 md:grid-cols-2">
             <button
@@ -1241,51 +1380,37 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
 
   const content = (
     <>
-        <div className="mb-5 flex flex-wrap items-center gap-3">
-          <div className="text-sm font-semibold text-slate-700">{locale === "en" ? "Submission Mode" : "提交方式"}</div>
-          <button
-            type="button"
-            onClick={() => switchMode("manual")}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === "manual" ? "bg-brand-500 text-white" : "border border-slate-200 bg-white text-slate-600"}`}
-          >
-            {locale === "en" ? "Manual Entry" : "手动填写"}
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode("github")}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === "github" ? "bg-brand-500 text-white" : "border border-slate-200 bg-white text-slate-600"}`}
-          >
-            {locale === "en" ? "Import from GitHub" : "从 GitHub 导入"}
-          </button>
+        <div className="mb-5 rounded-[20px] border border-white/80 bg-white/92 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.05)]">
+          <div className="text-sm font-semibold text-slate-900">{text.mode.title}</div>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{text.mode.description}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => switchMode("manual")}
+              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                mode === "manual"
+                  ? "border-brand-500 bg-brand-500 text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)]"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50/40"
+              }`}
+            >
+              {text.mode.promptTitle}
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("github")}
+              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                mode === "github"
+                  ? "border-brand-500 bg-brand-500 text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)]"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50/40"
+              }`}
+            >
+              {text.mode.githubTitle}
+            </button>
+          </div>
+          <div className="mt-2 text-xs leading-5 text-slate-500">
+            {mode === "manual" ? text.mode.promptDescription : text.mode.githubDescription}
+          </div>
         </div>
-        <div className="mb-6 grid gap-3 md:grid-cols-2">
-          {(mode === "github" ? steps.filter((item) => item === "basic") : steps).map((item, index) => {
-            const active = item === step;
-            const done = steps.indexOf(item) < steps.indexOf(step);
-            const disabled = item === "prompt" && !canOpenPromptStep;
-            return (
-              <button
-                key={item}
-                type="button"
-                onClick={() => updateQuery(item)}
-                disabled={disabled}
-                className={`rounded-[24px] border px-5 py-4 text-left transition ${
-                  active
-                    ? "border-brand-500 bg-brand-500 text-white shadow-[0_16px_34px_rgba(37,99,235,0.22)]"
-                    : done
-                      ? "border-brand-200 bg-brand-50 text-brand-700"
-                      : disabled
-                        ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-                        : "border-slate-200 bg-white text-slate-600"
-                }`}
-              >
-                <div className="text-xs font-semibold uppercase tracking-[0.18em]">Step {index + 1}</div>
-                <div className="mt-2 text-base font-semibold">{text.stepTitles[item]}</div>
-              </button>
-            );
-          })}
-        </div>
-
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_360px]">
           <section className="rounded-[32px] border border-white/80 bg-white/92 p-6 shadow-[0_22px_60px_rgba(15,23,42,0.06)]">
             {loadingDraft ? <div className="py-20 text-center text-slate-500">{text.state.loadingDraft}</div> : null}
@@ -1310,40 +1435,20 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
               <div className="flex flex-wrap gap-3">
                 <HeroButton
                   className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
-                  onPress={goPrev}
                   onClick={goPrev}
                   isDisabled={step === "basic" || saving || submitting}
                 >
                   {text.actions.prev}
                 </HeroButton>
-                <HeroButton
-                  className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
-                  onPress={() => {
-                    if (mode === "manual") {
-                      void saveDraft(undefined, { track: true });
-                    }
-                  }}
-                  onClick={() => {
-                    if (mode === "manual") {
-                      void saveDraft(undefined, { track: true });
-                    }
-                  }}
-                  isDisabled={mode === "github" || saving || submitting}
-                >
-                  {saving ? text.actions.saving : text.actions.save}
-                </HeroButton>
                 {step === "basic" ? (
                   <HeroButton
                     className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white"
-                    onPress={() => {
-                      void goNext();
-                    }}
                     onClick={() => {
                       void goNext();
                     }}
                     isDisabled={saving || submitting}
                   >
-                    {mode === "github"
+                    {mode === "github" || mode === "manual"
                       ? (submitting
                         ? text.actions.submitting
                         : draft.status === "pending_review"
@@ -1354,9 +1459,6 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
                 ) : (
                   <HeroButton
                     className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white"
-                    onPress={() => {
-                      void goNext();
-                    }}
                     onClick={() => {
                       void goNext();
                     }}
@@ -1385,13 +1487,6 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
                 </span>
               </div>
               <div className="overflow-hidden rounded-[24px] border border-slate-100 bg-slate-50">
-                {draft.coverImage ? (
-                  <img src={draft.coverImage} alt={draft.title || "cover"} className="h-44 w-full object-cover" />
-                ) : (
-                  <div className="flex h-44 items-center justify-center bg-slate-100 text-sm text-slate-400">
-                    {text.preview.coverPlaceholder}
-                  </div>
-                )}
                 <div className="space-y-4 p-5">
                   <div className="flex flex-wrap gap-2">
                     {currentCategory ? (
@@ -1405,7 +1500,13 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
                       </span>
                     ))}
                   </div>
-                  <p className="text-sm leading-7 text-slate-600">{draft.summary || text.preview.defaultSummary}</p>
+                  <p className="text-sm leading-7 text-slate-600">
+                    {mode === "manual"
+                      ? (draft.systemPrompt
+                        ? `${draft.systemPrompt.trim().slice(0, 120)}${draft.systemPrompt.trim().length > 120 ? "..." : ""}`
+                        : text.preview.promptPlaceholder)
+                      : (draft.summary || text.preview.defaultSummary)}
+                  </p>
                   <div className="grid gap-3 rounded-[24px] border border-slate-100 bg-white p-4 text-sm text-slate-600">
                     {mode === "github" && githubParsed ? (
                       <div>
@@ -1426,13 +1527,24 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
                       {" "}
                       {meta.skillTypeOptions.find((item) => item.value === draft.skillType)?.label || text.preview.empty}
                     </div>
-                    <div>
-                      {text.preview.useCases}:
-                      {" "}
-                      {draft.useCases.length > 0
-                        ? draft.useCases.map((item) => getUseCaseLabel(locale, item, meta.useCaseOptions)).join(" / ")
-                        : text.preview.empty}
-                    </div>
+                    {mode === "github" ? (
+                      <>
+                        <div>
+                          {text.preview.useCases}:
+                          {" "}
+                          {draft.useCases.length > 0
+                            ? draft.useCases.map((item) => getUseCaseLabel(locale, item, meta.useCaseOptions)).join(" / ")
+                            : text.preview.empty}
+                        </div>
+                        <div>
+                          {text.preview.recommendedModels}:
+                          {" "}
+                          {draft.recommendedModels.length > 0
+                            ? draft.recommendedModels.join(" / ")
+                            : text.preview.empty}
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                   <div className="rounded-[24px] border border-slate-100 bg-slate-900 p-4 text-sm text-slate-200">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -1453,6 +1565,16 @@ export function SubmitSkillPage({ locale, meta, embedded = false }: Props) {
             </div>
           </aside>
         </div>
+        {submitting ? (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/28 backdrop-blur-[2px]">
+            <div className="flex min-w-[220px] items-center gap-3 rounded-[24px] bg-white px-5 py-4 shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-200 border-t-brand-500" />
+              <div className="text-sm font-medium text-slate-700">
+                {text.actions.submitting}
+              </div>
+            </div>
+          </div>
+        ) : null}
     </>
   );
 

@@ -92,6 +92,7 @@ export type SkillSubmissionDraft = {
   promptFileName?: string | null;
   systemPrompt: string;
   attachmentUrls?: string[];
+  submitNote?: string | null;
   status: SkillSubmitStatus;
   qualityScore?: number | null;
   reviewComment?: string | null;
@@ -164,6 +165,7 @@ export type UserGithubSkillParseResult = {
     difficulty?: SkillDifficulty | null;
     tags: string[];
     use_cases: string[];
+    models: string[];
     prompt_role?: string | null;
     system_prompt?: string;
   };
@@ -180,6 +182,7 @@ export type UserGithubSkillSubmitPayload = {
   difficulty?: SkillDifficulty;
   tags: string[];
   use_cases?: string[];
+  recommended_models?: string[];
   usage_guide?: string;
   example_input?: string;
   example_output?: string;
